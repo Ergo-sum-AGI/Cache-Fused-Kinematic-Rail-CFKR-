@@ -1,0 +1,934 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+\usepackage{geometry}
+\geometry{a4paper, margin=0.75in}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{tcolorbox}
+\tcbuselibrary{breakable}
+\usepackage{fvextra}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{longtable}
+\usepackage{microtype}
+
+% Define Palette
+\definecolor{docnavy}{HTML}{1A2B4C}
+\definecolor{docblue}{HTML}{2B5B84}
+\definecolor{docaccent}{HTML}{D9534F}
+\definecolor{docdark}{HTML}{222222}
+\definecolor{doclight}{HTML}{F8F9FA}
+\definecolor{docborder}{HTML}{E2E8F0}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=docblue,
+    citecolor=docblue,
+    urlcolor=docblue
+}
+
+\setlength{\emergencystretch}{3em}
+\newcommand{\sR}{\textbf{[R]}}
+\newcommand{\sC}{\textbf{[C]}}
+\newcommand{\sF}{\textbf{[F]}}
+\newcommand{\sB}{\textbf{[B]}}
+\newcommand{\sO}{\textbf{[O]}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small \textcolor{docnavy}{\textbf{MyceliaLM \& MASSIF Master Telemetry Glossary}}}
+\rhead{\small \textcolor{gray}{Unified LaTeX Reference v5.0}}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\setlength{\headheight}{14pt}
+
+% Custom TColorBox for Metrics
+\newtcolorbox{metricbox}[1]{
+    colback=doclight,
+    colframe=docnavy,
+    fonttitle=\bfseries\color{white},
+    title={#1},
+    breakable,
+    arc=2pt,
+    top=6pt, bottom=6pt, left=8pt, right=8pt,
+    boxrule=0.8pt
+}
+
+\newtcolorbox{logbox}[1]{
+    colback=doclight,
+    colframe=docblue,
+    fonttitle=\bfseries\color{white},
+    title={#1},
+    breakable,
+    arc=2pt,
+    top=6pt, bottom=6pt, left=8pt, right=8pt,
+    boxrule=0.8pt
+}
+
+\title{\vspace{-1.5cm}\Large \textbf{UNIFIED MASTER TELEMETRY GLOSSARY \& METRIC SPECIFICATION}\\
+\large \textcolor{docblue}{MyceliaLM Cognitive Architecture \& MASSIF Latent Trajectory Framework}\\
+\small \textsf{Continuous SDE Kinematics, Closed-Loop Governors, Pressure Tensor Diagnostics, and Live Dashboard Telemetry}}
+\author{\textbf{Daniel Solis} -- Principal Investigator, Dubito Inc. / Ergo Sum AGI Safety Systems}
+\date{October 2026 -- Version 5.0 Audited Synthesis}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\noindent This document is the master glossary of the telemetry, control and diagnostic quantities of the MyceliaLM architecture and the MASSIF latent-trajectory framework. Each metric is given with its definition as implemented in the source code, a plain-language reading, reference ranges where they have been measured, and its diagnostic role. Version 5.0 results from an audit that compared the glossary with the training loop (v15/v151), the architecture (v141), the optimizer (v12), live training logs and representation-probe outputs. Statements that depend on implementation behaviour carry a verification tag (Section~\ref{sec:log}), and a Known Defects Register (Section~\ref{sec:defects}) lists the faults found, their evidence and the status of the corresponding fixes. Reference ranges from earlier versions that could not be reproduced under the corrected definitions are marked provisional or withdrawn.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% SECTION: REVISION LOG
+\section{Modification and Addition Log (v5.0 Audited Synthesis)}\label{sec:log}
+
+\subsection{Verification tags}
+Every statement that depends on how the software actually behaves carries one of five tags.
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}cp{14.2cm}@{}}
+\toprule
+\textbf{Tag} & \textbf{Meaning}\\
+\midrule
+\sR{} & Observed at runtime in a log, CSV or probe output produced during the audit.\\
+\sC{} & Derived from reading the source (training loop v15/v151, architecture v141, optimizer v12). Not yet observed at runtime.\\
+\sF{} & A code change that addresses the item was written and compile-checked. Its effect has not been observed.\\
+\sB{} & Background knowledge from the literature, not verified in this audit.\\
+\sO{} & Open: unexplained, untested, or awaiting a decision.\\
+\bottomrule
+\end{tabular}
+\caption{Verification tags used throughout the glossary.}
+\end{table}
+
+\begin{logbox}{Audit Log (v5.0)}
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Scope.} The glossary was compared with the training loop, the architecture file, the optimizer, live logs and probe outputs. Definitions now follow the code, and implementation faults are recorded in the Known Defects Register (Section~\ref{sec:defects}).
+    \item \textbf{Governor stack (Sections 1, 6, 7).} Metric 1.2 separates the veto hit ratio from the veto factor and defines the effective target. Metrics 1.3 and 1.7 state that block-level set-points are read by the forward pass only once the transition progress reaches one. Metric 6.4 states that the logged control factor is computed without the floor. Metric 7.1 defines pressure as work times norm and corrects the aggregation from a layer mean to a sum.
+    \item \textbf{Progress counters (Metric 6.6).} Iterations, optimizer steps and tokens are defined separately. The logged learning-rate warm-up shows one scheduler step per 32 iterations \sR{}.
+    \item \textbf{New diagnostics.} Weight-spectrum diagnostics (Section~\ref{sec:spectra}) and linear representation probes (Section~\ref{sec:probes}).
+    \item \textbf{SNLI audit (Section~\ref{sec:snli}).} Rewritten around the label-order defect, the confirmed constant-predictor result, the calibrated scoring rule and the premise-shuffle control.
+    \item \textbf{Retained from v4.1.} Norm-growth rate (renamed from ``Lyapunov proxy''), split diffusion quantities, ballistic threshold taken from the code, friction-label condition, GCI ceiling fix, resume guard counted in logged intervals, closed regime partition, persistence criterion for $\chi_R$, corpus tag \texttt{CZ\_fact}.
+    \item \textbf{Withdrawn.} The label ``peer-reviewed'' (the changes were audited against source and logs, not externally reviewed). The claim that step 535{,}000 is a historic milestone. The healthy range ``FFN veto ratio $<20\%$''. The claim that a 100\% veto ratio is a cold-start artifact.
+\end{enumerate}
+\end{logbox}
+
+\newpage
+
+
+\section{Foundational Hidden-State Geometry \& Governor Architecture}
+
+\subsection{Hidden-State Trajectory Geometry}
+\begin{metricbox}{Metric 1.1: Hidden State Residual Vector ($h^{(l)}_t$)}
+\textbf{What it is:} The continuous representational state vector in the residual stream evolving through network layers $l \in [1, L]$ and autoregressive time steps $t \in [1, T]$.\\
+\textbf{Calculation:}
+ $$h^{(l)}_t \in \mathbb{R}^d, \quad l \in \{1, \dots, L\}, \quad t \in \{1, \dots, T\}$$ \emph{In Words:} ``The hidden state at layer $l$ and timestep $t$ is a vector belonging to the $d$-dimensional real vector space $\mathbb{R}^d$, evolving sequentially across layers $l$ from 1 to $L$ and generation steps $t$ from 1 to $T$.''\\
+\textbf{Target / Healthy Values:} Mean Euclidean norm $\|h^{(l)}_t\|_2$ bounded between $18.0$ and $24.0$ Activation Magnitude Units.\\
+\textbf{Why it matters:} Treats model execution as a continuous Riemannian trajectory rather than a black-box function, enabling real-time differential geometric telemetry during the forward pass.
+\end{metricbox}
+
+\subsection{The Four-Loop Closed-Loop Governor Stack}
+\begin{metricbox}{Metric 1.2: FFN Veto Governor (hit ratio, veto factor, effective target)}
+\textbf{What it is:} A per-token norm clamp on the feed-forward output $f_t^{(l)}$ of block $l$. Two different quantities are logged and must not be confused.\\
+\textbf{Calculation:}
+$$v_t = \min\!\left(1, \frac{\tau_{\text{eff}}}{\|f_t\|_2 + 10^{-6}}\right), \qquad f_t \leftarrow v_t f_t$$
+$$\begin{aligned}
+\rho_{\text{hit}} &= \frac{1}{T}\sum_{t=1}^{T} \mathbf{1}\!\left[\|f_t\|_2 > \tau_{\text{eff}}\right] \quad (\texttt{ffn\_veto\_ratio}), \qquad \nu = \frac{1}{T}\sum_{t=1}^{T} v_t \quad (\texttt{ffn\_veto\_factor}),\\
+W_{\text{FFN}}^{(l)} &= 1 - \nu^{(l)}
+\end{aligned}$$
+\emph{In Words:} ``The hit ratio is the share of tokens whose feed-forward norm exceeds the effective target. The veto factor is the average scaling multiplier actually applied and equals $1.0$ when no token is clamped. The governor work is one minus the factor.''\sC{}\\
+\textbf{Effective target:} $\tau_{\text{eff}}$ is logged as \texttt{ffn\_target\_current}. While the transition progress $p = (s - s_0)/D$ is below $1$, a block uses the configuration ramp $\tau_{\text{cfg}} + \text{ease}(p)\,(\tau_{\text{end}} - \tau_{\text{cfg}})$. Only for $p \ge 1$ does it use its block-level target, the one adjusted by recalibration, the auto-tuner and the meta-governor. The step $s$ a block receives is the model attribute \texttt{depth}, which is initialised to $0$ and not set by the training loop, so $p = 0$ and the configuration value applies (FFN~$30$, alpha~$25$ in v15/v151).\sC{} The dashboard ramp value is a separate number.\\
+\textbf{Logged norms:} \texttt{mean\_norm} and \texttt{max\_norm} are measured before the veto is applied and refer to the last block.\sC{}\\
+\textbf{Observed example:} At step 535{,}000 the log shows $\rho_{\text{hit}} = 100\%$ with pre-veto mean norm $44.8$ and max norm $48.5$ while the dashboard target read $50$. Every token exceeded the block's effective target, which therefore lay below $44.8$. The nonzero $\Pi_{\text{FFN}} = 172.1$ in the same log requires $\nu < 1$.\sR{}\\
+\textbf{Interpretation:} $\rho_{\text{hit}} = 100\%$ with $\nu < 1$ means every token is clamped. $\rho_{\text{hit}} = 0\%$ with $\nu = 1.0$ means the clamp is idle. $\nu = 1.0$ together with $\rho_{\text{hit}} = 100\%$ cannot occur.\\
+\textbf{Reference values:} None verified. The earlier range ``$\rho_{\text{hit}} < 20\%$'' was stated without reference to $\tau_{\text{eff}}$ and is withdrawn until it is re-measured against the effective target.\\
+\textbf{Why it matters:} Separates how often the clamp engages from how strongly it scales activations, and ties both to the target the blocks really used.
+\end{metricbox}
+
+\begin{metricbox}{Metric 1.3: Alpha Scaling Governor and Surfer Target ($\tau_\alpha$, SURFER\_TARGET)}
+\textbf{What it is:} A scaling of the combined attention and feed-forward branch contribution, $\alpha_a a^{(l)} + \alpha_f f^{(l)}$, so that its norm stays at or below the effective alpha target $\tau_\alpha^{\text{eff}}$.\\
+\textbf{Calculation:} The scale factor $s^{(l)} \in (0,1]$ (logged as \texttt{alpha\_scale\_factor}) brings the contribution norm to the target, and the governor work is $W_\alpha^{(l)} = 1 - s^{(l)}$ (\texttt{alpha\_work}).\sC{}\\
+\textbf{Effective target:} Logged as \texttt{alpha\_target\_current}. It follows the same provenance rule as Metric 1.2: the configuration ramp while $p < 1$, the block-level target for $p \ge 1$.\sC{} The dashboard line SURFER\_TARGET prints the block-level attribute \texttt{alpha\_norm\_target} of the first block, which the forward pass does not read while $p < 1$. At step 535{,}000 it showed $45.00$, which equals the fallback written by the resume recalibration when the blocks hold no telemetry yet.\sC{}\\
+\textbf{Reference values:} None verified. The earlier range ``$20$ to $60$'' described the dashboard value and not necessarily the target in use.\\
+\textbf{Why it matters:} Limits gain accumulation across layers. Whether a phase-transition-driven target schedule (the ``Surfer'') has any effect depends on the transition progress seen by the blocks (Defect D2).
+\end{metricbox}
+
+\begin{metricbox}{Metric 1.4: Soft Cap Governor Telemetry (hit\_ratio, max\_raw, mean\_raw)}
+\textbf{What it is:} Real-time activation statistics for the SoftCap Governor prior to final layer-norm projection.\\
+\textbf{Calculation:}
+ $$\begin{aligned}
+\text{hit\_ratio} &= \frac{1}{T \cdot L} \sum_{t=1}^T \sum_{l=1}^L \mathbf{1}\left[\|r^{(l)}_t\|_2 > \tau_{\text{softplus\_start}}\right],\\
+\text{max\_raw} &= \max_{t,l} \|r^{(l)}_t\|_2, \qquad \text{mean\_raw} = \operatorname{mean}_{t,l} \|r^{(l)}_t\|_2
+\end{aligned}$$ \emph{In Words:} ``SoftCap hit ratio equals the fraction of tokens and layers where the raw residual norm exceeded soft compression threshold. Max raw is the highest residual norm observed in the batch; mean raw is the average.''\\
+\textbf{Target / Healthy Values:} hit\_ratio $< 20.0\%$. max\_raw bounded below $\tau_{\text{cap}} = 28.0$ (or $15 - 17$ in low-norm regimes, $< 465$ in high-norm runs); mean\_raw $\approx 14 - 16$.\\
+\textbf{Why it matters:} Monitors whether the network is brushing against its maximum representational capacity. High hit ratios signal that the model is constantly pushing larger activations than allowed safely.
+\end{metricbox}
+
+\begin{metricbox}{Metric 1.5: Model Predictive Control (MPC) Governor ($I_{\text{combined}}$)}
+\textbf{What it is:} Predictive instability score calculated by a temporal Kalman/Bayesian forecaster observing trend acceleration.\\
+\textbf{Calculation:}
+ $$I_{\text{combined}}^{(l)} \le I_{\text{target}}$$ \emph{In Words:} ``The trend-extended combined instability score $I_{\text{combined}}$ at layer $l$ must remain less than or equal to target instability $I_{\text{target}}$.''\\
+\textbf{Target / Healthy Values:} Target threshold $I_{\text{target}} = 0.45 - 0.70$. Intervention rate $< 1.0\%$ (or up to $20-40\%$ during distribution shifts).\\
+\textbf{Why it matters:} Provides proactive, predictive intervention by executing fractional dampening before trajectory degeneration serializes into output tokens.
+\end{metricbox}
+
+\subsection{Cybernetic Integration}
+\begin{metricbox}{Metric 1.6: Internal Meta-Governor (internal\_meta\_governor\_v124)}
+\textbf{What it is:} In-vivo, forward-pass cybernetic self-regulation engine embedded directly within network layers, replacing external post-layer wrappers with intrinsic representational governance.\\
+\textbf{Calculation:}
+ $$S_{\text{meta}}^{(l)} = f_{\text{internal}}\left(h^{(l)}, \Pi(l), R_t^{\text{CCR}}, \chi_R\right)$$  $$\alpha_{\text{eff}}^{(l)} = \alpha_{\text{native}}^{(l)} \cdot \exp\left(-\gamma_{\text{meta}} \cdot F(l) \cdot I_{\text{combined}}(l)\right)$$ \emph{In Words:} ``The internal meta-governor state $S_{\text{meta}}$ at layer $l$ is computed directly during the forward pass from hidden state $h$, layer pressure $\Pi$, macroscopic order parameter $R_t^{\text{CCR}}$, and response function $\chi_R$. The effective layer scale $\alpha_{\text{eff}}$ equals native alpha times the exponential of negative gain $\gamma_{\text{meta}}$ times forecast confidence $F$ times combined instability $I_{\text{combined}}$.''\\
+\textbf{Target / Healthy Values:} Bounded alpha scaling factors $\alpha_{\text{eff}}^{(l)} \in [0.40, 1.20]$; forward-pass execution latency tax $< 0.05\text{ ms/step}$; active circuit breaker status $\text{CB} = \text{GREEN/YELLOW}$.\\
+\textbf{Why it matters:} Eliminates external control overhead by performing real-time, in-vivo representational dampening directly within the forward pass before loss spikes propagate.
+\end{metricbox}
+
+\begin{metricbox}{Metric 1.7: Governor Auto-Tuner (governor\_auto\_tuner\_122)}
+\textbf{What it is:} Outer-loop adaptive set-point calibration engine that dynamically optimizes governor threshold set-points and feedback gains across training epochs based on loss response sensitivity.\\
+\textbf{Calculation:}
+ $$\tau_i(t+1) = \tau_i(t) - \eta_{\text{tune}} \cdot \text{sign}(\chi_R) \cdot \frac{\partial \Pi_i}{\partial \tau_i}$$  $$\gamma_{\text{meta}}(t+1) = \gamma_{\text{meta}}(t) + \beta_{\text{tune}} \cdot \text{ReLU}\left(\chi - \chi_{\text{max}}\right)$$ \emph{In Words:} ``The governor threshold set-point $\tau_i$ at iteration $t+1$ equals $\tau_i$ at step $t$ minus tuning rate $\eta_{\text{tune}}$ times the sign of the optimization response function $\chi_R$ times the partial derivative of pressure $\Pi_i$ with respect to threshold $\tau_i$. The control gain $\gamma_{\text{meta}}$ at $t+1$ equals $\gamma_{\text{meta}}$ at step $t$ plus tuning factor $\beta_{\text{tune}}$ times the rectified linear unit of pressure concentration $\chi$ minus maximum concentration $\chi_{\text{max}}$.''\\
+\textbf{Target / Healthy Values:} Adaptation rate $\eta_{\text{tune}} \in [10^{-4}, 10^{-2}]$; concentration ceiling $\chi_{\text{max}} = 0.85$; smooth set-point convergence maintaining $R_t^{\text{CCR}} > 1.50$.\\
+\textbf{Application status:} The tuner's outputs are written to block-level attributes. They reach the forward pass only for transition progress $p \ge 1$ (Metric 1.2), so under the v15/v151 loop they are recorded in the log but not applied.\sC{} The tuner module itself was not part of the audit.\\
+\textbf{Why it matters:} Automatically tunes cybernetic guardrails to match evolving manifold curvature across pre-training phases without manual hyperparameter intervention.
+\end{metricbox}
+
+\section{Stochastic Differential Equation (SDE) \& Fokker-Planck Diagnostics}
+
+\begin{metricbox}{Metric 2.1: First-Order Drift Velocity ($D^{(1)}$ / $\mu_{\text{drift}}$)}
+\textbf{What it is:} Deterministic first-order drift vector driving logical progression through latent semantic space under an It\^o SDE ($dz_t = D^{(1)} dt + \sqrt{2D^{(2)}} dW_t$).\\
+\textbf{Calculation:}
+ $$D^{(1)}(z) = \lim_{\Delta t \to 0} \frac{1}{\Delta t} \mathbb{E}\left[\Delta z \mid z_t = z\right]$$ \emph{In Words:} ``The first-order drift vector $D^{(1)}$ equals the limit as delta $t$ approaches zero of one divided by delta $t$, multiplied by the expected displacement delta $z$ given state $z$.''\\
+\textbf{Target / Healthy Values:} Magnitude range $18.79$ to $21.58$.\\
+\textbf{Why it matters:} Measures the strength of deterministic reasoning drive versus stochastic diffusion noise.
+\end{metricbox}
+
+\begin{metricbox}{Metric 2.2: Second-Order Diffusion Coefficients ($D^{(2)}_{\text{tr}}$ \& $D^{(2)}_{\text{dir}}$)}
+\textbf{What it is:} Second-order Kramers-Moyal diffusion tensors measuring conditional variance rate of hidden-state increments. The dashboard logs two distinct quantities: the trace ($D^{(2)}_{\text{tr}}$) for SDE SNR, and the directional variance ($D^{(2)}_{\text{dir}}$) for the Pawula ratio.\\
+\textbf{Calculation:}
+ $$D^{(2)}_{\text{tr}}(z) = \lim_{\Delta t \to 0} \frac{1}{2\Delta t} \mathbb{E}\left[(\Delta z)(\Delta z)^\top \mid z_t = z\right], \quad D^{(2)}_{\text{dir}} = \text{Var}_{\text{dir}}(\Delta z)$$ \emph{In Words:} ``The trace diffusion coefficient $D^{(2)}_{\text{tr}}$ equals the limit as delta $t$ approaches zero of one divided by two times delta $t$, multiplied by the expected outer product of hidden-state increments. The directional variance $D^{(2)}_{\text{dir}}$ measures the variance of the increments projected onto the trajectory tangent.''\\
+\textbf{Target / Healthy Values:} Healthy range for $D^{(2)}_{\text{dir}}$: $2.2 \times 10^{-4}$ to $2.9 \times 10^{-4}$. Sudden jump $> 4.0 \times 10^{-4}$ indicates noise explosion. The trace $D^{(2)}_{\text{tr}}$ is significantly larger (e.g., $0.0367$).\\
+\textbf{Why it matters:} Quantifies continuous stochastic perturbation acting on the representational trajectory.
+\end{metricbox}
+
+\begin{metricbox}{Metric 2.3: Fourth-Order Kramers-Moyal Coefficient ($D^{(4)}$ / $D4$)}
+\textbf{What it is:} Fourth-order stochastic moment auditing higher-order non-Gaussian jump noise.\\
+\textbf{Calculation:}
+ $$D^{(4)}(z) = \lim_{\Delta t \to 0} \frac{1}{24 \Delta t} \mathbb{E}\left[(\Delta z)^4 \mid z_t = z\right]$$ \emph{In Words:} ``The fourth-order Kramers-Moyal coefficient $D^{(4)}$ equals the limit as delta $t$ approaches zero of one divided by twenty-four times delta $t$, multiplied by the expected fourth moment of increments delta $z$.''\\
+\textbf{Target / Healthy Values:} Healthy range: $10^{-7}$ to $10^{-6}$. Sustained values $> 5 \times 10^{-6}$ signal non-Langevin jump noise.\\
+\textbf{Why it matters:} Tests whether the system obeys continuous Langevin dynamics or suffers from discontinuous state jumps.
+\end{metricbox}
+
+\begin{metricbox}{Metric 2.4: Pawula Diagnostic Ratio ($\mathcal{R}_{\text{Pawula}}$)}
+\textbf{What it is:} Normalized Pawula ratio testing for Fokker-Planck truncation validity ($D^{(n)} = 0$ for $n \ge 3$).\\
+\textbf{Calculation:}
+ $$\mathcal{R}_{\text{Pawula}} = \frac{D^{(4)}}{(D^{(2)}_{\text{dir}})^2}$$ \emph{In Words:} ``The Pawula ratio $\mathcal{R}_{\text{Pawula}}$ equals the fourth-order Kramers-Moyal coefficient $D^{(4)}$ divided by the square of the directional variance scale $D^{(2)}_{\text{dir}}$.''\\
+\textbf{Target / Healthy Values:} Healthy range: $6.0$ to $50.0$. Values $> 50.0$ signal breakdown of continuous SDE assumptions (Heavy Tails).\\
+\textbf{Why it matters:} By Pawula's Theorem, if $D^{(4)} \to 0$, all higher-order terms vanish, proving that trajectory evolution is governed strictly by drift and diffusion.
+\end{metricbox}
+
+\begin{metricbox}{Metric 2.5: SDE Directional Signal-to-Noise Ratio ($\rho_{\text{dir}}$ / $\rho_{\text{raw}}$)}
+\textbf{What it is:} Ratio of target-directed deterministic drift to effective diffusion noise intensity.\\
+\textbf{Calculation:}
+ $$\rho(z) = \frac{\|D^{(1)}(z)\|_2}{\sqrt{D^{(2)}_{\text{tr}}(z)}}, \quad \rho_{\text{dir}} = \frac{\langle D^{(1)}(z), v_{\text{target}} \rangle}{\sqrt{D^{(2)}_{\text{tr}}(z)}}$$ \emph{In Words:} ``The SDE signal-to-noise ratio $\rho$ equals the Euclidean norm of first-order drift vector $D^{(1)}$ divided by the square root of the trace of the diffusion rate $D^{(2)}_{\text{tr}}$.''\\
+\textbf{Regime Thresholds (Code-Verified):}
+\begin{itemize}
+    \item $\rho_{\text{dir}} > 1.5$: \textbf{BALLISTIC}. Tokens travel along deterministic geodesics.
+    \item $\rho_{\text{dir}} \ll 1.5$: \textbf{STOCHASTIC}. Trajectories degenerate into random walks.
+\end{itemize}
+\textbf{Why it matters:} Identifies whether reasoning is driven by ballistic vector flow or collapsing into thermalized noise.
+\end{metricbox}
+
+\section{Latent Trajectory Kinematics \& Differential Geometry}
+
+\begin{metricbox}{Metric 3.1: Latent Velocity ($v^{(l)}_t$)}
+\textbf{What it is:} Layer-to-layer vector displacement in the residual stream.\\
+\textbf{Calculation:}
+ $$v^{(l)}_t = h^{(l)}_t - h^{(l-1)}_t, \quad \|v^{(l)}_t\|_2 = \sqrt{\sum_{i=1}^d \left(h_{t,i}^{(l)} - h_{t,i}^{(l-1)}\right)^2}$$ \emph{In Words:} ``Latent velocity $v$ at layer $l$ equals the hidden state vector at layer $l$ minus the hidden state vector at layer $l-1$.''\\
+\textbf{Target / Healthy Values:} $\|v\|_2$ range $2.8$ to $4.2$ units per layer.\\
+\textbf{Why it matters:} Quantifies the magnitude of representational transformation performed by layer $l$.
+\end{metricbox}
+
+\begin{metricbox}{Metric 3.2: Latent Acceleration ($a^{(l)}_t$)}
+\textbf{What it is:} Rate of change of latent velocity across consecutive network layers.\\
+\textbf{Calculation:}
+ $$a^{(l)}_t = v^{(l)}_t - v^{(l-1)}_t$$ \emph{In Words:} ``Latent acceleration $a$ at layer $l$ equals velocity at layer $l$ minus velocity at layer $l-1$.''\\
+\textbf{Target / Healthy Values:} $\|a\|_2$ range $0.4$ to $1.2$ units per layer$^2$.\\
+\textbf{Why it matters:} Detects force application and momentum shifts in representational processing.
+\end{metricbox}
+
+\begin{metricbox}{Metric 3.3: Trajectory Curvature ($\kappa_t$)}
+\textbf{What it is:} Angular curvature measuring how sharply the hidden-state trajectory bends through latent space.\\
+\textbf{Calculation:}
+ $$\kappa_t = \frac{\|v_t \times a_t\|_2}{\|v_t\|_2^3 + \epsilon} \quad \text{or} \quad \kappa^{(l)} = \frac{\|v^{(l)}\|_2^2}{\|v^{(l)}\|_2^2 + \epsilon \|a^{(l)}\|_2}$$ \emph{In Words:} ``Curvature $\kappa$ equals the norm of the cross product of velocity and acceleration, divided by the cubed norm of velocity plus epsilon.''\\
+\textbf{Target / Healthy Values:} Healthy range: $0.12$ to $0.35$. Spikes $> 0.65$ indicate logical reorientation or severe instability.\\
+\textbf{Why it matters:} High curvature signals hesitation, context switching, or imminent trajectory breakdown.
+\end{metricbox}
+
+\begin{metricbox}{Metric 3.4: Trajectory Jerk ($j^{(l)}$)}
+\textbf{What it is:} Third temporal derivative of position representing sudden, erratic changes in trajectory curvature.\\
+\textbf{Calculation:}
+ $$j^{(l)} = \left|\kappa^{(l)} - \kappa^{(l-1)}\right|$$ \emph{In Words:} ``Jerk $j$ at layer $l$ equals the absolute difference between curvature at layer $l$ and curvature at layer $l-1$.''\\
+\textbf{Target / Healthy Values:} Bounded below $0.15$. Spikes $> 0.40$ signal discontinuous shock updates.\\
+\textbf{Why it matters:} Identifies abrupt, un-smoothed layer interventions that risk disrupting downstream representations.
+\end{metricbox}
+
+\begin{metricbox}{Metric 3.5: Directional Persistence ($I_t$) \& Rolling Persistence ($\bar{I}_t^{(k)}$)}
+\textbf{What it is:} Cosine alignment between consecutive velocity vectors, quantifying directional memory in latent motion.\\
+\textbf{Calculation:}
+ $$I_t = \frac{v_t \cdot v_{t-1}}{\|v_t\|_2 \|v_{t-1}\|_2 + \epsilon}, \quad \bar{I}_t^{(k)} = \frac{1}{k} \sum_{i=t-k+1}^t I_i$$ \emph{In Words:} ``Persistence $I$ at step $t$ equals the dot product of velocity at step $t$ and velocity at step $t-1$, divided by the product of their Euclidean norms plus epsilon.''\\
+\textbf{Regime Classification:}
+\begin{itemize}
+    \item $I_t \approx -1.0$: Anti-persistent (corrective, healthy exploratory reasoning).
+    \item $I_t \approx 0.0$: Orthogonal directional reset.
+    \item $I_t > 0.0$: Persistence flip crossing into attractor lock-in / repetitive collapse.
+\end{itemize}
+\textbf{Why it matters:} Primary early indicator of recursive collapse; persistent positive values ($I_t > 0.4$) indicate trapped, non-corrective looping.
+\end{metricbox}
+
+\begin{metricbox}{Metric 3.6: Local Tension ($\sigma_t$)}
+\textbf{What it is:} Cross-run variance of rolling persistence across $N$ independent random initializations or runs.\\
+\textbf{Calculation:}
+ $$\sigma_t = \text{std}\left(\left\{\bar{I}_t^{(r)}\right\}_{r=1}^N\right) = \sqrt{\frac{1}{N-1} \sum_{r=1}^N \left(\bar{I}_t^{(r)} - \langle \bar{I}_t \rangle\right)^2}$$ \emph{In Words:} ``Local tension $\sigma$ at step $t$ equals the sample standard deviation of rolling persistence across $N$ independent runs.''\\
+\textbf{Target / Healthy Values:} Healthy range: $0.05$ to $0.22$. Spikes $\sigma_t > 0.35$ achieve AUROC $> 0.9$ in predicting collapse 2-3 tokens in advance.\\
+\textbf{Why it matters:} Precursor stress metric; quantifies sensitivity to initial conditions prior to persistent flips.
+\end{metricbox}
+
+\begin{metricbox}{Metric 3.7: Volatility Gradient ($\Phi_t$) \& Predictive Velocity ($\Psi_t^{(m)}$)}
+\textbf{What it is:} Discrete derivative of local tension ($\Phi_t = d\sigma_t/dt$) and its low-pass filtered momentum ($\Psi_t^{(m)}$) over window $m$.\\
+\textbf{Calculation:}
+ $$\Phi_t = \sigma_t - \sigma_{t-1}, \quad \Psi_t^{(m)} = \frac{1}{m} \sum_{i=0}^{m-1} \Phi_{t-i}$$ \emph{In Words:} ``Volatility gradient $\Phi$ equals tension at step $t$ minus tension at step $t-1$. Predictive volatility velocity $\Psi$ equals the moving average of $\Phi$ over window $m$.''\\
+\textbf{Target / Healthy Values:} $\Phi_t$ bounded between $-0.10$ and $+0.10$.\\
+\textbf{Why it matters:} Isolates structural stress acceleration from transient sampling noise.
+\end{metricbox}
+
+\begin{metricbox}{Metric 3.8: Sub-Basin Jump Indicator (SBTI)}
+\textbf{What it is:} Indicator of transition between sub-basins in the loss landscape.\\
+\textbf{Calculation:}
+ $$\text{SBTI}_t = \mathbf{1}\left[\|\nabla \mathcal{L}_t - \nabla \mathcal{L}_{t-1}\|_2 > \delta_{\text{basin}}\right] \cdot \Delta \mathcal{L}_t$$ \emph{In Words:} ``Sub-Basin Jump Indicator SBTI flags abrupt gradient vector shifts and loss discontinuous jumps corresponding to basin transitions.''\\
+\textbf{Target / Healthy Values:} Healthy: $0.000$ (intra-basin). Warning: $> 0.05$ (major sub-basin jump).\\
+\textbf{Why it matters:} Tracks structural re-organization in the loss landscape during training.
+\end{metricbox}
+
+\begin{metricbox}{Metric 3.9: Cross-Token Directional Coherence ($c_l$)}
+\textbf{What it is:} Mean cosine similarity of hidden-state velocity vectors across different token positions in the sequence.\\
+\textbf{Calculation:}
+ $$c_l = \frac{1}{T(T-1)} \sum_{i \neq j} \frac{v_i \cdot v_j}{\|v_i\|_2 \|v_j\|_2}$$ \emph{In Words:} ``Cross-token directional coherence equals the average pairwise velocity cosine similarity across all token positions.''\\
+\textbf{Target / Healthy Values:} $c_l \in [0.000, 0.880]$. Healthy independent routing: $c_l \approx 0.000$; synchronized sequence wave: $c_l > 0.800$.\\
+\textbf{Why it matters:} Distinguishes Individual Ballistic Flow (where tokens move independently) from Collective Ballistic Alignment (where the sequence moves as a synchronized wave).
+\end{metricbox}
+
+\begin{metricbox}{Metric 3.10: Dubito Score / Paradox Index (Dubito)}
+\textbf{What it is:} Real-time paradox and uncertainty score measuring multi-head dissensus and trajectory curvature under contradictory inputs.\\
+\textbf{Calculation:}
+ $$\text{Dubito}_t = \sigma_{\text{head}, t}^2 \cdot \exp\left(\gamma \cdot \kappa_t\right) \cdot \left(1 - C_t\right)$$ \emph{In Words:} ``The Dubito score equals inter-head fiber curvature times the exponential of gamma times trajectory curvature, multiplied by one minus attention coherence $C$.''\\
+\textbf{Target / Healthy Values:} Healthy range: $1.2$ to $4.5$. Paradox threshold: Dubito $> 7.0$.\\
+\textbf{Why it matters:} Detects internal self-doubt and conflicting context coordinates before logit confidence collapses.
+\end{metricbox}
+
+\begin{metricbox}{Metric 3.11: Effective Warning Lead Time ($\tau_{\text{eff}}$)}
+\textbf{What it is:} Time window (in tokens) between real-time telemetry anomaly detection and output token collapse.\\
+\textbf{Calculation:}
+ $$\tau_{\text{eff}} = t_{\text{collapse}} - t_{\text{detection}}$$ \emph{In Words:} ``Effective warning lead time equals the timestep of token-level collapse minus the timestep of internal telemetry alert.''\\
+\textbf{Target / Healthy Values:} Target: $\tau_{\text{eff}} \ge +30.0$ tokens (MASSIF achieves mean $\tau_{\text{eff}} = +32.4$ tokens).\\
+\textbf{Why it matters:} Demonstrates positive lead time over output probability metrics, enabling in-vivo intervention before bad tokens emit.
+\end{metricbox}
+
+\section{Friction, Depth Variance, \& Silicon Hardware Rails}
+
+\begin{metricbox}{Metric 4.1: Early Layer Variance ($\mathcal{V}_{\text{early}}$) \& Late Layer Variance ($\mathcal{V}_{\text{late}}$)}
+\textbf{What it is:} Mean normalized activation variance across early processing layers ($1 \to L/2$) versus late projection layers ($L/2+1 \to L$).\\
+\textbf{Calculation:}
+ $$\mathcal{V}_{\text{early}} = \frac{1}{L/2} \sum_{\ell=1}^{L/2} \mathcal{V}^{(\ell)}, \quad \mathcal{V}_{\text{late}} = \frac{1}{L/2} \sum_{\ell=L/2+1}^L \mathcal{V}^{(\ell)}$$ \emph{In Words:} ``Early variance equals the average normalized activation variance over the first half of network layers; late variance equals the average over the second half.''\\
+\textbf{Target / Healthy Values:} $\mathcal{V}_{\text{early}} \in [0.93, 0.98]$; $\mathcal{V}_{\text{late}} \in [1.00, 1.06]$.\\
+\textbf{Why it matters:} Tracks the Filter-Project energy cascade mechanism across network depth.
+\end{metricbox}
+
+\begin{metricbox}{Metric 4.2: Variance Delta / Friction Delta ($\Delta$)}
+\textbf{What it is:} Depth-dependent variance differential measuring energy dissipation or noise amplification across layers.\\
+\textbf{Calculation:}
+ $$\Delta = \mathcal{V}_{\text{early}} - \mathcal{V}_{\text{late}}$$ \emph{In Words:} ``Friction Delta equals mean early-layer variance minus mean late-layer variance.''\\
+\textbf{Regime Classification:}
+\begin{itemize}
+    \item $\Delta > +1.0$: \textbf{DISSIPATED}. Early layers filter noise; late layers project freely.
+    \item $-1.0 \le \Delta \le +1.0$ \textbf{AND} early/late variance $< 2.0$: \textbf{HARMONIZED}. Healthy depth variance cascade ($\Delta \approx -0.06$ to $-0.09$).
+    \item $\Delta < -1.0$: \textbf{DEEP DRIFT}. Late layers amplify noise; runaway risk.
+    \item $\Delta \to 0.00$: \textbf{Geometric Flatline}. Critical depth-specialization collapse triggering CFKR intervention.
+\end{itemize}
+\textbf{Why it matters:} Fundamental depth health metric; Geometric Flatline triggers CFKR fractional warmdown or reflection override.
+\end{metricbox}
+
+\begin{metricbox}{Metric 4.3: Cache-Fused Kinematic Rail (CFKR) Metric Grafting ($\Delta_{\text{CFKR}}$)}
+\textbf{What it is:} In-vivo GPU kernel KV-cache fusion trigger grafting metric differentials directly into memory layout.\\
+\textbf{Calculation:}
+ $$\text{CFKR\_Trigger} = \mathbf{1}\left[|\Delta| < \epsilon_{\text{flatline}} \quad \text{and} \quad I_t > 0.35\right]$$ \emph{In Words:} ``CFKR intervention fires when Friction Delta approaches Geometric Flatline AND persistence crosses into positive lock-in.''\\
+\textbf{Target / Healthy Values:} Sub-2ms kernel execution ($1.58\text{ ms vs } 14.00\text{ ms}$ software logit bias, $8.88\times$ speedup).\\
+\textbf{Why it matters:} Hardware-native ex-ante alignment executing memory layout mutations with zero VRAM spikes.
+\end{metricbox}
+
+\section{Attention Consensus, Head Differentiation, \& Spectral Properties}
+
+\begin{metricbox}{Metric 5.1: Coherence ($C$) / Acclamation Rate}
+\textbf{What it is:} Fraction of token positions where cross-head attention variance falls below an adaptive robust statistical threshold.\\
+\textbf{Calculation:}
+ $$C = \frac{1}{T} \sum_{t=1}^T \mathbf{1}\left[\sigma_{\text{attn}, t}^2 < \theta_t\right], \quad \theta_t = \text{Median}(\sigma_{\text{attn}}^2) + 1.4826 \cdot \text{MAD}(\sigma_{\text{attn}}^2)$$ \emph{In Words:} ``Coherence $C$ equals the fraction of sequence steps where head variance is less than adaptive threshold $\theta_t$, calculated via Median Absolute Deviation scaling.''\\
+\textbf{Target / Healthy Values:} Healthy range: $0.75$ to $0.98$ (during training); drops to $\approx 0.00$ during specialized fiber untangling.\\
+\textbf{Why it matters:} Quantifies consensus agreement across attention heads; protects against dissenting noise.
+\end{metricbox}
+
+\begin{metricbox}{Metric 5.2: Inter-Head Fiber Curvature ($\sigma^2_{\text{head}}$)}
+\textbf{What it is:} Variance of trajectory curvature across the 32 attention heads within a layer.\\
+\textbf{Calculation:}
+ $$\sigma^2_{\text{head}} = \text{Var}_{h \in \{1, \dots, H\}}\left(\kappa_t^{(h)}\right) = \frac{1}{H} \sum_{h=1}^H \left(\kappa_t^{(h)} - \bar{\kappa}_t\right)^2$$ \emph{In Words:} ``Fiber curvature $\sigma^2_{\text{head}}$ equals the variance of trajectory curvature $\kappa$ across all attention heads within a layer.''\\
+\textbf{Target / Healthy Values:} Healthy range: $0.60$ to $0.77$. Collapse $< 0.50$ indicates head uniformity and loss of specialization.\\
+\textbf{Why it matters:} Direct proxy for structural head specialization (fiber untangling).
+\end{metricbox}
+
+\begin{metricbox}{Metric 5.3: Decoupling Velocity ($\dot{\sigma}^2_{\text{head}}$)}
+\textbf{What it is:} First-order time derivative of inter-head fiber curvature, tracking the rate of head specialization.\\
+\textbf{Calculation:}
+ $$\dot{\sigma}^2_{\text{head}} \approx \frac{\sigma^2_{\text{head}, t} - \sigma^2_{\text{head}, t-\Delta t}}{\Delta t}$$ \emph{In Words:} ``Decoupling velocity equals the change in inter-head fiber curvature divided by time step delta $t$.''\\
+\textbf{Target / Healthy Values:} Positive values $\dot{\sigma}^2_{\text{head}} > +0.005$ confirm active Hidden Descent.\\
+\textbf{Why it matters:} Proves that internal representational specialization is actively accelerating even when scalar loss is flatlining.
+\end{metricbox}
+
+\begin{metricbox}{Metric 5.4: Attention Entropy Variance ($\text{Var}(\mathcal{H}_{\text{attn}})$)}
+\textbf{What it is:} Inter-layer variance of Shannon routing entropy across attention heads.\\
+\textbf{Calculation:}
+ $$\text{Var}(\mathcal{H}_{\text{attn}}) = \text{Var}\left(\left\{-\sum_j a_{ij}^{(l, h)} \ln a_{ij}^{(l, h)}\right\}_{l, h}\right)$$ \emph{In Words:} ``Attention entropy variance equals the variance of Shannon attention distribution entropy across all layers and heads.''\\
+\textbf{Target / Healthy Values:} Healthy range: $0.0003$ to $0.0029$. Warning: $> 0.0050$ (routing entropy explosion).\\
+\textbf{Why it matters:} Detects spontaneous symmetry breaking and routing entropy collapse.
+\end{metricbox}
+
+\begin{metricbox}{Metric 5.5: Spectral Concentration ($S_{\text{concentration}}$)}
+\textbf{What it is:} Ratio of top-$k$ singular values to total spectral mass of final hidden-state matrix.\\
+\textbf{Calculation:}
+ $$S_{\text{concentration}} = \frac{\sum_{i=1}^k \sigma_i}{\sum_{j=1}^d \sigma_j}$$ \emph{In Words:} ``Spectral concentration equals the sum of the top-k singular values divided by the total sum of singular values.''\\
+\textbf{Target / Healthy Values:} Healthy range: $0.06$ to $0.08$. Values $> 0.15$ indicate dimensional collapse.\\
+\textbf{Why it matters:} Audits representational anisotropy and effective dimensionality of latent space.
+\end{metricbox}
+
+\begin{metricbox}{Metric 5.6: Block-4 Fourier Spectral Resonance ($S(\omega)$)}
+\textbf{What it is:} Power spectral density peak of hidden states under periodic prompt forcing.\\
+\textbf{Calculation:}
+ $$S(\omega) = \left|\int_{-\infty}^\infty h_t e^{-i\omega t} dt\right|^2$$ \emph{In Words:} ``Spectral resonance $S(\omega)$ equals the squared magnitude of the Fourier transform of the hidden-state sequence.''\\
+\textbf{Target / Healthy Values:} Critical resonance cutoff $f_c \approx 0.3 - 0.4$ normalized repetition frequency.\\
+\textbf{Why it matters:} Identifies frequency-selective susceptibility and harmonic entrainment under periodic input forcing.
+\end{metricbox}
+
+\section{Instability Forecasting, Historical Buffers, \& Closed-Loop Control}
+
+\begin{metricbox}{Metric 6.1: Instability Field History Array (I-field)}
+\textbf{What it is:} A sliding window array (24 values across layers/steps) tracking historical Integrated Instability Field values.\\
+\textbf{Calculation:}
+ $$\text{I-field} = \left[I(t-23), I(t-22), \dots, I(t-1), I(t)\right]$$ \emph{In Words:} ``The I-field array displays the last 24 values of the MPC instability prediction across layers, showing temporal degeneration trends.''\\
+\textbf{Target / Healthy Values:} Values decaying toward $< 0.45$ (e.g. starts at $1.98$, decays to $0.68$).\\
+\textbf{Why it matters:} Enables visual inspection of temporal instability dynamics, proving whether the MPC controller is successfully cooling spikes.
+\end{metricbox}
+
+\begin{metricbox}{Metric 6.2: Confidence Field History Array (Conf-field)}
+\textbf{What it is:} A sliding window array tracking historical Forecast Confidence $F(l)$ values across layers.\\
+\textbf{Calculation:}
+ $$\text{Conf-field} = \left[F(t-23), F(t-22), \dots, F(t-1), F(t)\right]$$ \emph{In Words:} ``The Conf-field array displays the last 24 values of forecast confidence, showing trust in predictions over time.''\\
+\textbf{Target / Healthy Values:} Healthy range: $0.65$ to $0.85$ across all layers.\\
+\textbf{Why it matters:} Validates predictor reliability across depth.
+\end{metricbox}
+
+\begin{metricbox}{Metric 6.3: Control Effort / Governor Work Rate ($\dot{W}_{\text{gov}}$)}
+\textbf{What it is:} First-order discrete derivative of global optimization pressure ($\Pi$), representing instantaneous governor actuation effort.\\
+\textbf{Calculation:}
+ $$\dot{W}_{\text{gov}} = |\Pi_t - \Pi_{t-1}| \quad \text{or} \quad \dot{W}_\alpha = |\Pi_{\alpha, t} - \Pi_{\alpha, t-1}|$$ \emph{In Words:} ``Control effort $\dot{W}_{\text{gov}}$ equals the absolute step-to-step variation in global or attention optimization pressure.''\\
+\textbf{Target / Healthy Values:} Healthy range: $0.05$ to $25.17$ (in stable runs: $1.0 - 5.0$). Fake cold-start artifact: $150 - 160$.\\
+\textbf{Why it matters:} Quantifies the active work performed by closed-loop governors to maintain stability.
+\end{metricbox}
+
+\begin{metricbox}{Metric 6.4: Effective Control Factor ($\alpha_{\text{eff}} / \alpha_{\text{native}}$)}
+\textbf{What it is:} Multiplicative attenuation factor applied to residual weights by the controller.\\
+\textbf{Calculation:}
+ $$\alpha_{\text{eff}} = \alpha_{\text{native}} \cdot \exp\left(-\gamma_{\text{control}} \cdot F(l) \cdot I_{\text{combined}}(l)\right)$$ \emph{In Words:} ``Effective control factor alpha-eff equals native alpha times the exponential of negative control gamma times confidence $F$ times instability $I_{\text{combined}}$.''\\
+\textbf{Target / Healthy Values:} Scale factor $\alpha_{\text{eff}} / \alpha_{\text{native}} \in [0.50, 1.00]$.\\
+\textbf{Telemetry versus applied value:} The factor applied to alpha is clamped to $[\text{floor}, 1]$ with a default floor of $0.7$. The logged \texttt{control} value and the MPC work $W_{\text{MPC}} = 1 - \texttt{control}$ are computed from $\exp(-\gamma\,F\,\min(I_{\text{combined}},1))$ without the floor, so they can lie below $0.7$ and then overstate the applied attenuation.\sC{} Example: \texttt{control} $= 0.627$ with $F = 0.659$ and $I = 0.709$ gives $\gamma = 1.00$.\sR{}\\
+\textbf{Why it matters:} Dynamic weight attenuation mechanism executing closed-loop stabilization.
+\end{metricbox}
+
+\begin{metricbox}{Metric 6.5: Forecast Error ($\epsilon$)}
+\textbf{What it is:} Online learning error signal driving adaptive self-calibration of the controller.\\
+\textbf{Calculation:}
+ $$\epsilon(l) = \left|I_{\text{raw}}(l-1) - \mathbf{1}\left[I_{\text{combined}}(l) > I_{\text{target}}\right]\right|$$ \emph{In Words:} ``Forecast error epsilon equals the absolute difference between raw instability prediction at layer $l-1$ and actual threshold indicator at layer $l$.''\\
+\textbf{Target / Healthy Values:} Healthy range: $0.05$ to $0.25$ (during steady state; up to $0.66$ during initial cold start).\\
+\textbf{Why it matters:} Drives online Bayesian weight adaptation inside the MPC governor.
+\end{metricbox}
+
+\begin{metricbox}{Metric 6.6: Progress Counters and Learning-Rate Schedule}
+\textbf{What it is:} Three counters that the dashboard historically conflated: the loop iteration $s$ (one micro-batch of $B\,L_{\text{seq}}$ tokens), the optimizer step $k = \lfloor s/A \rfloor$ with $A = 32$ accumulation iterations, and the tokens consumed $N_{\text{tok}}$.\\
+\textbf{Calculation:}
+$$N_{\text{tok}}(s) = s\,B\,L_{\text{seq}} = k\,A\,B\,L_{\text{seq}}, \qquad \eta(k) = \eta_{\text{peak}}\,\min\!\left(1, \frac{k}{K_w}\right)\ \text{during warm-up}$$
+With $B = 1$, $L_{\text{seq}} = 512$, $K_w = 500$ and $\eta_{\text{peak}} = 3\times10^{-4}$, one iteration is $512$ tokens and one optimizer step is $16{,}384$ tokens.\sC{}\\
+\textbf{Evidence:} The logged learning rates at iterations $1{,}000$ to $7{,}000$ ($1.92\times10^{-5}$, $3.78\times10^{-5}$, $5.64\times10^{-5}$, $7.50\times10^{-5}$, $9.42\times10^{-5}$, $1.13\times10^{-4}$, $1.31\times10^{-4}$) correspond to $k = 32, 63, 94, 125, 157, 188, 218$, that is $k \approx s/32$. The scheduler therefore steps once per 32 iterations.\sR{}\\
+\textbf{Dashboard defect:} The throughput tracker multiplies the iteration count by $16{,}384$, so reported tokens, percent progress and tokens per second are too large by a factor of $32$. The reported ETA is the time to finish $\lfloor 5\times10^{10}/16{,}384 \rfloor = 3{,}051{,}757$ iterations, about $1.56\times10^{9}$ tokens, not $5\times10^{10}$.\sC{} At iteration $561{,}000$ the consumed tokens are $N_{\text{tok}} \approx 2.87\times10^{8}$ ($0.18$ tokens per parameter for $1.62\times10^9$ parameters). The decision between counting optimizer steps in the loop and rescaling the totals is open.\sO{}\\
+\textbf{Why it matters:} Every token-based statement (progress, tokens per parameter, compute estimates) depends on this unit.
+\end{metricbox}
+
+\section{The Pressure Tensor ($\Pi$) \& Macroscopic Order Parameters}
+
+\subsection{Governor Work \& Pressure Breakdown}
+\begin{metricbox}{Metric 7.1: Governor Pressure ($\Pi_i$) and Global Pressure ($\Pi$)}
+\textbf{What it is:} For each governor $i$, the sum over layers of its work times the norm of the quantity it governs, in activation-magnitude units.\\
+\textbf{Calculation:}
+$$\begin{aligned}
+\Pi_i &= \sum_{l=1}^{L} W_i^{(l)}\, n_i^{(l)}, \qquad W_i^{(l)} = 1 - (\text{mean scaling factor of governor } i),\\
+\Pi &= \Pi_\alpha + \Pi_{\text{FFN}} + \Pi_{\text{MPC}} + \Pi_{\text{cap}}
+\end{aligned}$$
+For the FFN channel $n^{(l)}$ is the mean pre-veto feed-forward norm and $W^{(l)} = 1 - \nu^{(l)}$.\sC{} \emph{In Words:} ``Global pressure is the sum over the four governor channels, each being the layer-summed product of governor work and activation norm.''\\
+\textbf{Observed example:} Step 535{,}000: $\Pi = 337.2 = 172.1 + 160.5 + 0.0 + 4.6$ (FFN, alpha, cap, MPC). The components add up, so $\Pi$ is a sum and not the layer mean written in earlier versions.\sR{}\\
+\textbf{Caveats:} The MPC work uses the unfloored control factor (Metric 6.4). Values depend on the effective targets (Metric 1.2), so the earlier range $\Pi \in [260, 400]$ describes runs with the configuration targets of that time and is not a target. In a governor-ablation run with all targets set to $10^9$, nonzero FFN and alpha pressure was still logged ($\Pi_{\text{FFN}} = 37.6$, $\Pi_\alpha = 10.1$). The source of that residual pressure is not explained.\sO{}\\
+\textbf{Why it matters:} Central state variable for the load carried by closed-loop governance.
+\end{metricbox}
+
+\begin{metricbox}{Metric 7.2: Pressure Concentration Index ($\chi$ / $\rho$)}
+\textbf{What it is:} Ratio of maximum single-governor pressure to total global pressure, auditing structural load-bearing balance.\\
+\textbf{Calculation:}
+ $$\chi = \frac{\max_i \Pi_i}{\Pi_{\text{total}}}$$ \emph{In Words:} ``Pressure concentration index $\chi$ equals maximum governor pressure divided by total optimization pressure.''\\
+\textbf{Target / Healthy Values:} Healthy range: $0.35$ to $0.70$. Warning: $\chi \to 1.00$ indicates \textbf{Compensatory Deadlock} (single governor carrying $100\%$ load).\\
+\textbf{Why it matters:} Identifies dangerous single points of failure in closed-loop governance.
+\end{metricbox}
+
+\subsection{Macroscopic Order Parameters}
+\begin{metricbox}{Metric 7.3: Constructive-Compensatory Ratio ($R_t^{\text{CCR}}$)}
+\textbf{What it is:} Macroscopic thermodynamic order parameter evaluating whether optimization is driven by structural attention learning or compensatory brute-force stabilization.\\
+\textbf{Calculation:}
+ $$R_t^{\text{CCR}} = \frac{\Pi_\alpha}{\Pi_{\text{FFN}} + \Pi_{\text{MPC}}}$$ \textbf{Regime Classification:} The three regimes form a closed partition of $[0,\infty)$, identical to the \texttt{regime\_state} rule in the training loop:
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Regime} & \textbf{Interval} & \textbf{Reference sign of $\chi_R$}\\
+\midrule
+CONSTRUCTIVE & $R_t > 1.50$ & $\chi_R < 0$\\
+MARGINAL & $0.80 < R_t \le 1.50$ & $\chi_R \approx 0$\\
+COMPENSATORY & $R_t \le 0.80$ & $\chi_R > 0$\\
+\bottomrule
+\end{tabular}
+\end{center}
+\textbf{Status of the thresholds:} the cut points $0.80$ and $1.50$ are operational conventions of the dashboard. The sign of $\chi_R$ is a separate, empirical indicator, and the two can disagree. At step 535,000 the log shows $R_t = 0.909$ (MARGINAL by the table) together with $\chi_R = +0.134$ (compensatory sign). The glossary reports both quantities and draws no regime conclusion from either alone.\\
+\textbf{Why it matters:} Distinguishes genuine representation discovery from superficial loss decrease driven by memorization.
+\end{metricbox}
+
+\begin{metricbox}{Metric 7.4: Optimization Response Function ($\chi_R$)}
+\textbf{What it is:} Local thermodynamic derivative of scalar loss with respect to macroscopic order parameter $R_t$, acting as susceptibility in statistical mechanics.\\
+\textbf{Calculation:}
+ $$\chi_R = \frac{\partial \mathcal{L}_{\text{loss}}}{\partial R_t} \approx \frac{\Delta \mathcal{L}_t}{\Delta R_t}$$ \emph{In Words:} ``Optimization response function $\chi_R$ equals the partial derivative of entropy loss with respect to macroscopic order parameter $R_t$.''\\
+\textbf{Phase Transition Criterion (v4.1 Patch):} $\chi_R$ is an exponential average ($0.9/0.1$) of $\Delta\mathcal{L}/\Delta R$, with the ratio set to zero when $|\Delta R| \le 0.01$. Small $|\Delta R|$ above that floor amplifies loss noise by up to $100\times$. A phase transition is declared \emph{only} when the sign change persists for $k \ge 3$ consecutive logging intervals with $|\chi_R| > 0.05$.\\
+\textbf{Why it matters:} Operational probe for Grokking phase transitions and training stopping criteria.
+\end{metricbox}
+
+\section{Ensemble Synchronization, Meta-Governance, \& Data Tapestry}
+
+\begin{metricbox}{Metric 8.1: Kuramoto Latent Synchronization Order Parameter ($R_t^{\text{Kuramoto}}$)}
+\textbf{What it is:} Ensemble order parameter quantifying directional alignment across $N$ independent runs or $H \cdot L$ attention heads.\\
+\textbf{Calculation:}
+ $$R_t^{\text{Kuramoto}} = \left\|\frac{1}{N} \sum_{r=1}^N u_t^{(r)}\right\|_2, \quad u_t^{(r)} = \frac{v_t^{(r)}}{\|v_t^{(r)}\|_2}$$ \emph{In Words:} ``The Kuramoto synchronization order parameter equals the Euclidean norm of the ensemble average of normalized unit velocity vectors across $N$ runs.''\\
+\textbf{Interpretation:} $R_t \approx 0.0$: Incoherent phase-space dynamics; $R_t \to 1.0$: Complete phase synchronization (attractor lock-in).\\
+\textbf{Why it matters:} Measures ensemble-level trajectory alignment during multi-turn generation.
+\end{metricbox}
+
+\begin{metricbox}{Metric 8.2: Tapestry Audit Data Mixture \& pH-Stir Ratio}
+\textbf{What it is:} Exact breakdown of consumed data corpora tags over the audit window and expansion/anchor ratio.\\
+\textbf{Corpus Tags \& Meanings:}
+\begin{itemize}[leftmargin=*]
+    \item \texttt{FW\_EDU}: FineWeb-Edu (high-quality educational web text from S3)
+    \item \texttt{FW\_ORIG}: Original FineWeb (general web text from S3)
+    \item \texttt{STANFORD}: Stanford Philosophy corpus (philosophical/logic text)
+    \item \texttt{CZ\_fact}: Czech factual corpus (local .npy shard)
+    \item \texttt{EN\_Fact-TCM}: English factual Traditional Chinese Medicine shard
+    \item \texttt{web\_math}: Mathematical web text
+    \item \texttt{TEACHING}: Auto-gnosis lessons from Meta-Governor (Lesson-Based Reasoning)
+\end{itemize}
+\textbf{Target Ratio:} pH-Stir ratio maintained at 85\% Expansion / 15\% Anchor.\\
+\textbf{Why it matters:} Audits data mixture composition to ensure balance and prevent corpus skew.
+\end{metricbox}
+
+\begin{metricbox}{Metric 8.3: Meta-Governor Circuit Breaker (CB) \& Lesson-Based Reasoning (LBR)}
+\textbf{What it is:} Safety status and memory state of the high-level Meta-Governor council.\\
+\textbf{Status States:}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{[GREEN]}: All systems nominal.
+    \item \textbf{[YELLOW]}: Approaching phase boundary; governor cooling.
+    \item \textbf{[RED]}: Active intervention; specific control levers locked for self-correction. \emph{Note: RED indicates prudent lever locking (e.g., refusing alpha increases), NOT a crash.}
+\end{itemize}
+\textbf{LBR Memory:} Active memory units ($1,000 - 1,283$ lessons) indexed and injected into 5\% of training batches.\\
+\textbf{Why it matters:} Provides high-level deliberative governance and self-referential training distillation.
+\end{metricbox}
+
+\begin{metricbox}{Metric 8.4: Cold-Start Telemetry Ghosts \& Artifact Pruning Protocol (v4.1)}
+\textbf{What it is:} Single-step fake telemetry spikes occurring immediately after checkpoint resume due to zero-initialized in-memory variables.\\
+\textbf{Root Cause:} Upon resume, \texttt{auto\_tuner.\_prev\_pi\_alpha = 0.0}, \texttt{auto\_tuner.\_prev\_sigma2\_head = 0.0}, and \texttt{losses\_window = []}.\\
+\textbf{Fake Artifact Manifestations:}
+\begin{itemize}[leftmargin=*]
+    \item $\dot{W}_{\text{gov}} \approx 150 - 160$ (fake spike; true range $0.05 - 25.17$)
+    \item $\dot{\sigma}^2_{\text{head}} \approx +0.63 \to +0.73$ (fake spike; true range $\pm 0.01 - 0.10$)
+    \item Fake loss plunge and fake $GCI = 0.00$ \end{itemize}
+\textbf{Pruning Protocol (v4.1):} The guard is now counted in \emph{logged telemetry intervals} (default: 2 intervals), not raw steps. The counter is a plain module variable, so it is not saved or restored with \texttt{auto\_tuner} state. The ``previous value'' updates now refresh on \emph{every} logged interval, including masked ones, so the first unmasked interval differences against a real value, not the zero initialization. Masked intervals still print a $0.50$ placeholder GCI.\\
+\textbf{Further resume artifacts:} (i) The loop used to restart at the checkpointed step, because the checkpoint stored the step just completed and the loop resumed at the same value, so one step ran twice with a duplicate log, audit and save. Checkpoints now carry \texttt{resume\_step}, the first step still to run.\sC{}\sF{} (ii) The throughput tracker started from \texttt{last\_step = -1}, so the first sample divided the whole restored step count by the elapsed seconds. The step-535{,}000 log shows $676{,}150{,}836$ tokens per second.\sR{} The tracker now takes the resume step.\sF{} (iii) In that log the guard window was empty because telemetry runs only every 20 steps, so the ghost values $\dot{W}_{\text{gov}} = 160.53$ (equal to $\Pi_\alpha$) and $\dot\sigma^2_{\text{head}} = +0.702$ (equal to the fiber curvature) were printed and the first-interval GCI is contaminated.\sR{}\\
+\textbf{Why it matters:} Prevents cold-start initialization noise from corrupting scientific statistics and triggering false emergency shutdowns.
+\end{metricbox}
+
+\section{Advanced Anisotropic \& Subspace Metrics}
+
+\begin{metricbox}{Metric 9.1: ANOVA Subspace Decomposition}
+\textbf{What it is:} Two-way ANOVA projection decomposing residual vectors into orthogonal positional and contextual coordinates.\\
+\textbf{Calculation:}
+ $$h_{c,t}^{(l)} = \mu^{(l)} + \text{pos}_t^{(l)} + \text{ctx}_c^{(l)} + \text{resid}_{c,t}^{(l)}$$ \emph{In Words:} ``Hidden state $h$ at layer $l$, context $c$, and step $t$ equals global layer mean $\mu$, plus positional basis vector $\text{pos}$, plus context basis vector $\text{ctx}$, plus residual interaction vector $\text{resid}$.''\\
+\textbf{Target / Healthy Values:} Residual norm $\|\text{resid}\|_2^2 < 0.10 \cdot \|h\|_2^2$.\\
+\textbf{Why it matters:} Isolates position-specific representation from context-specific semantics.
+\end{metricbox}
+
+\begin{metricbox}{Metric 9.2: Positional-Contextual Subspace Incoherence}
+\textbf{What it is:} Inner product metric measuring orthogonality between positional topology and contextual semantics.\\
+\textbf{Calculation:}
+ $$\text{Incoherence} = \max_{t, c} \left|\left\langle \frac{\text{pos}_t^{(l)}}{\|\text{pos}_t^{(l)}\|_2}, \frac{\text{ctx}_c^{(l)}}{\|\text{ctx}_c^{(l)}\|_2} \right\rangle\right|$$ \emph{In Words:} ``Subspace incoherence equals the maximum absolute inner product between normalized positional and contextual basis vectors.''\\
+\textbf{Target / Healthy Values:} Incoherence $< 0.15$ indicates clean orthogonal coordinate disentanglement.\\
+\textbf{Why it matters:} Prevents interference between position encodings (e.g. RoPE/NoPE) and semantic content.
+\end{metricbox}
+
+\begin{metricbox}{Metric 9.3: Loss-Weighted Efficiency Score (LWES)}
+\textbf{What it is:} Quantifies trade-off between architectural VRAM compression efficiency and cognitive accuracy.\\
+\textbf{Calculation:}
+ $$\text{LWES} = \left(\frac{\mathcal{L}_{\text{uncompressed}}}{\mathcal{L}_{\text{compressed}}}\right)^\gamma \times \left(\frac{\text{Cumulative\_GB}}{\beta} + 1.0\right)$$ \emph{In Words:} ``LWES equals uncompressed loss over compressed loss raised to power gamma, multiplied by cumulative VRAM saved in GB divided by beta plus one.''\\
+\textbf{Target / Healthy Values:} LWES $> 1.50$ indicates optimal compression-fidelity equilibrium.\\
+\textbf{Why it matters:} Drives automated architecture pruning and early stopping controllers.
+\end{metricbox}
+
+\section{MASSIF Training-Time Stability Observatory (v4.1)}
+
+\begin{metricbox}{Metric 10.1: Attractor Basin Radius (Basin\_Radius)}
+\textbf{What it is:} Trace of the covariance matrix of hidden states at the deepest telemetry lattice layer, acting as a proxy for the macroscopic manifold volume.\\
+\textbf{Calculation:} 
+ $$\text{Basin\_Radius} = \text{Tr}\left(\text{Cov}(h^{(L)})\right) = \sum_{j=1}^d \text{Var}(h_{j, \text{centered}}^{(L)})$$ \emph{In Words:} ``The code takes the unbiased variance across the first 64 token positions at the deepest hooked layer and sums over features and batch entries. With \texttt{BATCH\_SIZE}~$=1$ this is the trace of the within-sequence token covariance. The quantity scales linearly with batch size, so any range quoted applies to $B=1$.''\\
+\textbf{Target / Healthy Values:} Bounded between 67.0 and 91.0 units (stable or slowly decreasing).\\
+\textbf{Why it matters:} Rapid shrinkage indicates an imminent attractor basin collapse into a degenerate subspace.
+\end{metricbox}
+
+\begin{metricbox}{Metric 10.2: Depth-wise Norm-Growth Rate ($\lambda_N$)}
+\textbf{What it is:} Mean log-ratio of the hidden state L2 norm across consecutive layers.\\
+\textbf{Calculation:} 
+ $$\lambda_N = \frac{1}{L-1} \sum_{l=1}^{L-1} \ln \left( \frac{\|h_{t}^{(l+1)}\|_2}{\|h_{t}^{(l)}\|_2} \right)$$ \emph{In Words:} ``The code averages $\ln\!\big(\|\bar h^{(\ell+1)}\|_2/\|\bar h^{(\ell)}\|_2\big)$ over consecutive telemetry layers, where $\bar h$ is the mean over the first 64 token positions. It measures the growth of the residual norm with depth, with no time index. A negative value shows norm contraction across depth and carries no information about divergence of nearby trajectories.''\\
+\textbf{Target / Healthy Values:} Negative values ($\lambda_N < 0.0$) confirm state norm shrinkage (convergence).\\
+\textbf{Why it matters:} Positive values ($\lambda_N > 0.0$) signal norm explosion or diverging representational magnitude.
+\end{metricbox}
+
+\begin{metricbox}{Metric 10.3: Critical Slowing Down (CSD)}
+\textbf{What it is:} Lag-1 autocorrelation of the Friction Delta ($\Delta$) over a 50-step sliding window.\\
+\textbf{Calculation:} 
+ $$\text{CSD} = \text{Corr}\left(\Delta_{t-1}, \Delta_t\right)_{t \in [T-50, T]}$$ \textbf{Target / Healthy Values:} Values approaching 1.0 ($\text{CSD} \to 1.0$) indicate phase boundary crystallization.\\
+\textbf{Why it matters:} In statistical physics, critical slowing down indicates that the system takes longer to recover from perturbations, signalling an impending phase transition.
+\end{metricbox}
+
+\section{Weight-Spectrum Diagnostics (v5.0)}\label{sec:spectra}
+
+These metrics are computed from saved checkpoints by \texttt{mycelia\_checkpoint\_spectra.py} and need no data. For a weight matrix $W \in \mathbb{R}^{m\times n}$ let $r = \min(m,n)$, $p = \max(m,n)$, $q = r/p$, and let $\lambda_1 \ge \dots \ge \lambda_r$ be the eigenvalues of $W W^\top / p$ (squared singular values divided by $p$). A Gaussian matrix of every distinct shape serves as the reference. The code was validated on synthetic matrices only (self-test passed, \sR{}); no results from a Mycelia checkpoint are available yet.\sO{}
+
+\begin{metricbox}{Metric 11.1: Stable Rank and Effective Rank}
+\textbf{What it is:} Two scalar summaries of how many directions carry the weight energy.\\
+\textbf{Calculation:}
+$$\operatorname{sr}(W) = \frac{\|W\|_F^2}{\sigma_1^2}, \qquad \operatorname{er}(W) = \exp\!\Big(-\sum_i \pi_i \ln \pi_i\Big),\ \ \pi_i = \frac{\sigma_i}{\sum_j \sigma_j}, \qquad \text{top16} = \frac{\sum_{i\le 16}\sigma_i^2}{\sum_j \sigma_j^2}$$
+\textbf{Reference:} The Gaussian baseline of the same shape. In the self-test an iid $512\times2048$ matrix has $\operatorname{sr} = 232$, and the same matrix with a strong rank-8 component has $\operatorname{sr} = 10.8$ and top16 $= 0.75$ (versus $0.066$).\sR{}\\
+\textbf{Why it matters:} Training that builds structure lowers stable rank and raises the top-16 share relative to the random baseline.
+\end{metricbox}
+
+\begin{metricbox}{Metric 11.2: Marchenko-Pastur Outlier Fraction}
+\textbf{What it is:} The share of eigenvalues that rise above the bulk expected from pure noise.\\
+\textbf{Calculation:}
+$$\hat s^2 = \frac{\operatorname{median}(\lambda)}{\mu_{\text{MP}}(q)}, \qquad \lambda_+ = \hat s^2\,(1+\sqrt q)^2, \qquad f_{\text{out}} = \frac{\#\{\lambda_i > 1.05\,\lambda_+\}}{r}$$
+where $\mu_{\text{MP}}(q)$ is the median of the unit-scale Marchenko-Pastur law with ratio $q$. The energy share of the outliers is logged as \texttt{out\_energy}.\\
+\textbf{Validation:} The noise variance of an iid matrix is recovered to within $1\%$, pure noise gives no outlier at three tested shapes, and a planted rank-8 component yields exactly eight outliers.\sR{}\\
+\textbf{Reading:} $f_{\text{out}} \approx 0$ means the matrix is statistically indistinguishable from noise at that scale. A non-iid initialisation (for example orthogonal) can show outliers at step 0, so the first-versus-last comparison is the cleaner signal.\\
+\textbf{Why it matters:} Direct data-free test of whether training has written structure into a matrix.
+\end{metricbox}
+
+\begin{metricbox}{Metric 11.3: Power-Law Exponent of the Spectrum ($\alpha$)}
+\textbf{What it is:} Exponent of the heavy tail of the eigenvalue density, $\rho(\lambda) \propto \lambda^{-\alpha}$.\\
+\textbf{Calculation:} Hill estimator $\hat\alpha = 1 + k/\sum_{i\le k}\ln(\lambda_i/\lambda_k)$ with the tail size $k$ chosen by the smallest Kolmogorov-Smirnov distance (Clauset-style).\\
+\textbf{Reference values:} From the literature on heavy-tailed self-regularisation, roughly $2$ to $6$ indicates a well-trained layer and values far above $6$ a weakly trained layer.\sB{} In the self-test a Gaussian matrix gives $10.8$ and heavy-tailed weights $2.35$.\sR{}\\
+\textbf{Why it matters:} Layer-wise indicator of training quality that needs only the weights.
+\end{metricbox}
+
+\begin{metricbox}{Metric 11.4: Update Structure (relative size, concentration, persistence)}
+\textbf{What it is:} Properties of $\Delta W = W_t - W_{\text{ref}}$ against a reference checkpoint.\\
+\textbf{Calculation:} $\text{dw\_rel} = \|\Delta W\|_F/\|W_{\text{ref}}\|_F$; $\text{dw\_top16}$ is the top-16 energy share of $\Delta W$; $\text{dw\_overlap} = \|U_t^\top U_{t-1}\|_F^2/16$ where $U_t$ spans the top-16 left singular subspace of $\Delta W$ (randomised range finder).\\
+\textbf{Reading:} An overlap near $16/m$ means the update directions change between checkpoints. The overlap is capped by (true signal dimension)$/16$, so an eight-dimensional persistent update scores about $0.5$ (verified on synthetic data, \sR{}).\\
+\textbf{Why it matters:} Shows whether the weights are moving at all and whether learning keeps pushing the same few directions, the within-run analogue of the shared-subspace observations in the weight-space literature.
+\end{metricbox}
+
+\section{Independent SNLI Audit: Scoring, Defects and Statistical Protocol (v5.0)}\label{sec:snli}
+
+\subsection{Scoring rule as implemented}
+The audit appends each candidate label word to the prompt \texttt{Premise: ... / Hypothesis: ... / Relation:} and predicts the label with the lowest mean per-token negative log-likelihood over the label tokens. It runs every \texttt{EVAL\_INTERVAL} iterations ($5{,}000$ by default) on the SNLI validation split restricted to gold labels, $n = 9{,}842$. The class shares entailment / neutral / contradiction are $0.3382 / 0.3287 / 0.3331$.\sR{} The majority-class rate is therefore $0.3382$.
+
+\subsection{Defect 1: label order}
+The script used the label list (entailment, contradiction, neutral), while the dataset ids are $0 =$ entailment, $1 =$ neutral, $2 =$ contradiction. The target word for neutral pairs was therefore ``contradiction'' and for contradiction pairs ``neutral''.\sC{} A semantically perfect classifier scored this way reaches only the entailment share, $0.3382$ (simulation using the observed class shares). The audit now reads the order from the dataset and asserts it.\sF{} Index $0$ (entailment) is the same in both orders, so the next finding does not depend on this defect.
+
+\subsection{Defect 2: constant predictor}
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}rrcrrrl@{}}
+\toprule
+\textbf{Step} & \textbf{Accuracy} & \textbf{Predictions E/C/N} & \textbf{Pawula} & \textbf{$\Delta$} & \textbf{$\rho_{\text{dir}}$} & \textbf{MASSIF flags}\\
+\midrule
+550{,}000 & 0.3382 & 9842 / 0 / 0 & 70.93 & $-0.0116$ & 119.98 & none\\
+555{,}000 & 0.3382 & 9842 / 0 / 0 & 56.24 & $-0.0585$ & 119.74 & none\\
+\bottomrule
+\end{tabular}
+\caption{SNLI audits at two checkpoints, with the telemetry columns logged in the same rows.\sR{}}
+\end{table}
+The model predicted ``entailment'' for all $9{,}842$ examples at both audits, and the logged accuracy $0.3382$ equals $3329/9842$, the entailment share. The earlier audit at step 535{,}000 gave the same accuracy but no prediction histogram was logged then. Two further observations: the MASSIF instability score is $0.0000$ with no flags although the decision rule is fully degenerate, so that detector does not flag this failure mode; and both Pawula values exceed the $50$ breakdown threshold of Metric 2.4 (two points, not interpreted further).\sR{}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Quantity ($k = 3329$, $n = 9842$)} & \textbf{Value}\\
+\midrule
+Accuracy $\hat p = k/n$ & 0.3382\\
+Null accuracy $p_0$ (uniform chance) & 0.3333\\
+Standard error under $H_0$, $\sqrt{p_0(1-p_0)/n}$ & 0.00475\\
+$z$ statistic & 1.02\\
+Exact one-sided binomial $p$-value & 0.153\\
+Wilson 95\% interval for $p$ & [0.3290, 0.3477]\\
+Minimum detectable accuracy (one-sided $\alpha = 0.05$, power $0.80$) & $\approx 0.345$\\
+\bottomrule
+\end{tabular}
+\caption{Binomial analysis of the logged accuracy. The appropriate null is the majority-class rate $0.3382$, against which the excess is zero.}
+\end{table}
+
+The mean-NLL rule favours label words whose subword sequences are cheap to predict, independent of the premise. The logged mean entropy over label positions was $9.60$ nats, an effective support of about $14{,}800$ tokens out of a vocabulary of $151{,}643$, so the predictions at those positions are diffuse and the winner may be decided by token-level properties of the label word. This explanation is a hypothesis.\sO{} It can be tested by printing the token length of each label word and by scoring each label under a content-free prompt.
+
+\subsection{Calibrated rule and controls (implemented, results pending)}
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Calibrated rule.} $\hat y = \arg\min_j \big[\mathrm{NLL}_{\text{sum}}(y_j \mid x) - \mathrm{NLL}_{\text{sum}}(y_j \mid x_\emptyset)\big]$, where $x_\emptyset$ is the template with premise and hypothesis replaced by ``N/A''. The null-prompt scores are logged as the label prior.\sF{}
+    \item \textbf{Premise-shuffle control.} On the first $1{,}000$ examples the hypothesis is scored with the premise of another example (partner offset $3571$). A model that uses the premise should lose accuracy on shuffled input. The gap between real and shuffled accuracy on the same examples is the quantity to report, since prediction agreement alone is unreliable when scores differ only by noise.\sF{}
+    \item \textbf{Confusion and per-class recall.} Prediction counts and per-class hits are logged at every audit, with balanced accuracy.\sF{}
+    \item \textbf{Sequential looks.} Under a pure-chance model each audit exceeds $1/3$ with probability near $1/2$, so a first crossing of $33.33\%$ is an expected event. A defensible criterion is a lower confidence bound above the majority baseline on several consecutive audits, with an $\alpha$-spending rule across the schedule.
+    \item \textbf{Paired comparison across checkpoints.} An exact McNemar test on per-example correctness separates real change from sampling noise, since audits share the same items.
+    \item \textbf{Cost.} The full audit blocked training for about an hour (throughput halved in the window containing it)\sR{}; \texttt{EVAL\_INTERVAL} and \texttt{SNLI\_AUDIT\_MAX} reduce this.\sF{}
+\end{enumerate}
+
+\section{Linear Representation Probes (v5.0)}\label{sec:probes}
+
+\subsection{Protocol}
+A multinomial logistic regression (L2, full-batch LBFGS) is fitted on frozen hidden states, taken at the last token of the prompt and as a masked mean, for selected blocks. Training uses $20{,}000$ SNLI training examples and evaluation the full validation set. The regularisation strength and the reported layer are chosen on a held-out slice of the training subset and never on validation data. Intervals are Wilson intervals, and paired comparisons use the exact McNemar test (computed in log space).\sC{}
+
+Controls that make the number interpretable: a \emph{hypothesis-only} probe (premise replaced by ``N/A'') because annotation artifacts alone exceed chance; a \emph{random-initialisation} model of the same architecture; a \emph{governors off} condition; and bag-of-words baselines.
+
+\subsection{Results at step 561{,}000}
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Full prompt, last token} & \textbf{Block 5} & \textbf{Block 11} & \textbf{Block 17} & \textbf{Block 23}\\
+\midrule
+Trained, as trained & 0.4459 & 0.3473 & 0.3391 & 0.3336\\
+Trained, MPC attenuation off & 0.4558 & 0.3485 & 0.3455 & 0.3499\\
+Random init, as trained & 0.3904 & 0.3650 & 0.3596 & 0.3466\\
+Random init, MPC attenuation off & 0.3828 & 0.3650 & 0.3484 & 0.3509\\
+\midrule
+\textbf{Hypothesis only, last token} & & & &\\
+\midrule
+Trained, as trained & 0.5224 & 0.3945 & 0.3624 & 0.3747\\
+Trained, MPC attenuation off & 0.5310 & 0.4266 & 0.4155 & 0.4219\\
+Random init, as trained & 0.5350 & 0.4478 & 0.4107 & 0.3743\\
+Random init, MPC attenuation off & 0.5376 & 0.4517 & 0.4120 & 0.4147\\
+\bottomrule
+\end{tabular}
+\caption{Validation accuracy of the linear probe ($n = 9{,}842$, 95\% half-width about $0.010$). Majority class $0.338$, chance $0.333$.\sR{}}
+\end{table}
+
+\subsection{Reading}
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{The premise adds nothing.} The full-prompt probe is below the hypothesis-only probe at every block in every condition (trained, block 5: $0.446$ versus $0.522$). No relational signal was detected.
+    \item \textbf{Trained versus random.} The trained model exceeds random initialisation clearly only at block 5 ($+5.5$ points in the full-prompt condition). At blocks 11 to 23 it is at or below random.
+    \item \textbf{Depth.} Accuracy falls with depth in every condition, including random initialisation, so the decay is not specific to training or to the governors.
+    \item \textbf{Effect of ``off''.} In hypothesis-only probes the ``off'' condition is $3$ to $6$ points higher at blocks 11 to 23, so more surface lexical information survives without MPC attenuation. In the full-prompt condition the largest gain is $+1.6$ points (block 23), the best of eight comparisons, with Bonferroni-adjusted $p \approx 0.13$ from an unpaired normal approximation, and its level equals that of random initialisation.
+    \item \textbf{Uniform FFN norms.} At the last block the pre-veto FFN norm is almost constant across tokens (mean $35.87$, max $35.91$), also for random initialisation ($31.4$), so a norm clamp rescales all tokens by nearly the same factor and removes little directional information.\sR{}
+\end{enumerate}
+
+\subsection{Limits of this evidence}
+In this run the ``governors off'' condition disabled the MPC attenuation only: the FFN veto hit ratio was $1.0$ and the mean FFN norm $35.88$ in both modes.\sR{} It therefore does not test the FFN and alpha clamps. The McNemar summary was not produced because of a numerical overflow, which is fixed.\sF{} The model was trained with the degraded rotary buffer (Defect D1), so the probes describe the model as trained. Twenty-four compressor parameters are absent from the checkpoint and unused while \texttt{use\_compression} is false.\sR{}
+
+\section{Known Defects Register (v5.0)}\label{sec:defects}
+
+\begingroup\small\setlength{\tabcolsep}{4pt}
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.7cm} >{\raggedright\arraybackslash}p{5.3cm} >{\raggedright\arraybackslash}p{4.4cm} >{\raggedright\arraybackslash}p{2.0cm} >{\raggedright\arraybackslash}p{2.6cm}}
+\caption{Faults found during the audit. Tags as in Section~\ref{sec:log}.}\label{tab:defects}\\
+\toprule
+\textbf{ID} & \textbf{Defect} & \textbf{Evidence} & \textbf{Status} & \textbf{Affects}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{Defect} & \textbf{Evidence} & \textbf{Status} & \textbf{Affects}\\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+D1 & The cast to bfloat16 drops the imaginary part of the complex buffer \texttt{rot\_c}, so the Fibonacci pair rotation becomes a per-pair $\cos$ scaling (switch \texttt{FIX\_COMPLEX\_BUFFERS}) & Probe printed 26 \texttt{rot\_c} buffers of dtype bfloat16\sR{}; PyTorch cast warning at model build\sR{} & fix written\sF{} & representation metrics of the model as trained\\
+D2 & \texttt{model.depth} is never set in training, so blocks use configuration targets and ignore block-level targets from recalibration, ramp, Surfer, auto-tuner and alpha wake (switch \texttt{SET\_MODEL\_DEPTH}) & Architecture lines 792--806, 1194, 1280\sC{}; veto hits 100\% with pre-veto norm below the displayed target\sR{} & logging and switch written\sF{}; runtime check pending\sO{} & Metrics 1.2, 1.3, 1.7, 7.1, 7.2\\
+D3 & Muon used a constant LR fixed at construction; the AdamW8 half is updated only by explicit syncs, which give $0.0$ at a fresh start & Optimizer v10 versus v12\sC{}; sync sites in the loop\sC{} & v12 and per-step sync written\sF{} & all learning outcomes\\
+D4 & Tracker counts $16{,}384$ tokens per iteration; an iteration is $512$ tokens & Warm-up learning rates imply one scheduler step per 32 iterations\sR{}; constants\sC{} & open\sO{} & progress, TPS, ETA, tokens per parameter (Metric 6.6)\\
+D5 & Resume tried BEST first; shutdown and final saves overwrote LATEST and BEST unconditionally; a failed load became a silent fresh start & Log showed random-init loss $12.3$ at ``Starting Step: 2''\sR{}; save sites\sC{} & safety patch written\sF{} & run continuity, Metric 8.4\\
+D6 & Resume replayed the checkpointed step (new key \texttt{resume\_step}) & Save and loop semantics\sC{} & fix written\sF{} & Metric 8.4\\
+D7 & GCI ceiling ($R$ fixed at 0) and an empty resume-guard window & Code\sC{}; ghost values in the step-535{,}000 log\sR{} & fixed\sF{} & GCI, Metric 6.3\\
+D8 & SNLI label order differs from the dataset ids & Class shares\sR{}; label list\sC{} & fixed\sF{} & SNLI audit\\
+D9 & Mean-NLL scoring yields a constant ``entailment'' prediction & Histogram $9842/0/0$ at two audits\sR{} & calibrated rule written\sF{}; results pending\sO{} & SNLI audit\\
+D10 & Dashboard labelling: veto ratio versus factor, pre-veto norms, SURFER\_TARGET as a dead attribute, Telegram $R$ placeholder, unfloored MPC control value & Code\sC{}; Telegram $R=1.000$ while the supervisor reported $\approx 0$\sR{} & partly fixed\sF{} & Metrics 1.2, 1.3, 6.4\\
+D11 & Governor ablation was incomplete: controllers reset \texttt{control\_gain}, and residual FFN and alpha pressure remained with targets at $10^9$ & Logged control $0.627$ gives $\gamma = 1.0$\sR{}; residual pressure\sR{} & re-assertion written\sF{}; residual unexplained\sO{} & ablation conclusions\\
+D12 & 24 compressor parameters are missing from the checkpoint & Probe loader output\sR{}; unused when compression is off\sC{} & none needed & probes\\
+D13 & The blocking SNLI audit halves throughput in its window (reduced by \texttt{EVAL\_INTERVAL} and \texttt{SNLI\_AUDIT\_MAX}) & Reported TPS fell from $3{,}499$ to $1{,}744$\sR{} & switches written\sF{} & throughput statistics\\
+\end{longtable}
+\endgroup
+
+\section{Production Telemetry Dashboard Specification \& Live Log Annotations}
+
+To bridge mathematical definitions with practical execution, this section provides an annotated breakdown of an actual production training log line from a live MyceliaLM 1.62B run on AWS SageMaker (NVIDIA T4 16GB).
+
+\begin{logbox}{Annotated Live Production Telemetry Log (Step 535,000)}
+\footnotesize
+\begin{Verbatim}[breaklines=true,breakanywhere=true,breaksymbolleft={},breaksymbolright={}]
+[CHK] PAWULA CHECK: Var=2.35e-04 | D4=1.52e-06 | Ratio=27.59 (OK FOKKER-PLANCK)
+[AUDIT] SDE AUDIT: drift=22.1112 | diffusion=0.0367 | raw_snr=115.3953
+
+[TMR] Step 535,000 | 676150836 tok/s | 8.77/50.0 Billion | 17.5% | ETA 0:01:00 | Elapsed 0:00:12
+   [TGT] MPC dormancy detected at step 535000
+   [PH] pH-Stir: expansion=85.0% | anchor=15.0% | ramp=100.0% (step 535,000/50,000)
+   [GBL] TAPESTRY AUDIT (Exact Source Attribution | N=1 batches):
+      [DIR] CZ_fact: 100.00%
+
+[STAT] Step 535,000 | Loss: 6.4393 | LR: 3.00e-04 | [DWN] Annealing | [UP] Transition: 100% (FFN=50 alpha=30)
+   Coherence: 0.0020 [DWN]
+   Friction: [GRN] HARMONIZED | early=0.97 late=1.00 Delta=-0.03
+   [OBS] STABILITY OBSERVATORY: | [TGT] Basin Radius: 91.059
+      [NGR] Norm-Growth Rate (lambda_N): -0.0800 (Norm Shrinking)
+      [CSD] Critical Slowing Down (Autocorr): 0.000
+   [AUDIT] KINETIC TRIGGERS & HIDDEN DESCENT: | [LBR] Attention Entropy Var: 0.0009
+      [SBTI] Sub-Basin Jump (SBTI): 0.000 | [TGT] Control Effort (W_dot_gov): 160.53
+      [DCV] Decoupling Vel (sigma_dot^2_head): +0.702 | [FIB] Fiber Curv: 0.7018
+   [CSD] GCI: 0.33 | Phase: ACTIVE DESCENT (Specializing)
+   [AUDIT] Spectral concentration: 0.080
+   FFNVeto: 100.0% mean_norm=44.8 max_norm=48.5 | target=50
+   [SRF] SURFER_TARGET=45.00
+   SoftCap: hit=0.0% max_raw=16.3 mean_raw=15.5
+
+   [MPC] MPC: intervene=0.0% control=0.640 I=0.678
+   [STAT] Pred: 0.682 | Conf: 0.659
+   [UP] Dynamics: v=-0.0093 a=-0.0093
+   [ERR] Forecast Error: 0.688
+   I-field:  0.23 0.43 0.52 0.56 0.56 0.57 0.58 0.59 0.59 0.59 0.60 0.60 0.61 0.62 0.62 0.63 0.63 0.64 0.65 0.65 0.66 0.66 0.67 0.68
+   Conf-field:0.43 0.61 0.65 0.66 0.66 0.66 0.66 0.66 0.66 0.66 0.66 0.66 0.66 0.66 0.66 0.66 0.66 0.66 0.66 0.66 0.66 0.66 0.66 0.66
+
+   [PRS] Pi=337.2 | chi=0.51 | dominant=ffn
+   [PRS] Pi breakdown: ffn=172.1 alpha=160.5 cap=0.0 mpc=4.6
+
+======================================================================
+[OK] TRANSITION COMPLETE at step 535,000
+======================================================================
+
+   [MAC] Macroscopic R=0.909 | Regime: MARGINAL (Pi_alpha=160.53, Pi_FFN=172.08, Pi_MPC=4.61 | raw: alpha=5.00 ffn=4.50 mpc=7.63)
+[SLT] SLT PHASE TRANSITION: chi_R flipped POSITIVE (-0.4109 -> +0.1342). Entering Grokking Window.
+   [SLT] chi_R=0.1342 | [SDE] SDE rho_raw=115.395 ([GRN] BALLISTIC) | rho_dir=113.678 ([GRN] BALLISTIC)
+   [CTC] Cross-token coherence c_l=0.870
+   [FIB] Fiber Curvature (sigma^2_head): 0.7018 | Heads SPECIALIZING
+
+[AUDIT] [SCHEDULED EVAL] Running independent SNLI audit at Step 535000...
+[OK] [SCHEDULED EVAL] Complete. Accuracy: 0.3382 | Entropy: 9.1203
+[OBS] [MASSIF OBSERVATORY] Inference Instability: 0.0000 | Flags: none
+   [TGT] MPC predictor recalibration started at step 535000
+   [LBR] Internal Meta-Governor v1.0 (LBR) initializing...
+[LBR] LBR-Memory: indexed 1431 actionable lessons | skipped 877 educational lessons | vector_dim=7
+[DCV] LBR-Memory: self-geometry manifold ready | shape=(92, 513)
+[CLN] LBR-Memory: pruned 124 sterile lessons, 1307 remain
+   [LBR] Meta-Gov: CB=[GRN] | memory=1307 | pending=1 | eps=0.10
+   [RCP] Lineage receipt: 691ca69fc9b42d06... (arch=4d3f36c6, loop=774db256)
+
+[SAV] Checkpoint: step 535,000 -> /home/ec2-user/SageMaker/mycelia_checkpoints/mycelia_step_829d8.pt
+\end{Verbatim}
+\end{logbox}
+
+\subsubsection*{Line-by-Line Telemetry Field Mapping (v4.1)}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Pawula Check}: Confirms continuous Langevin SDE validity ($\mathcal{R}_{\text{Pawula}} = 27.59 \in [6.0, 50.0]$).
+    \item \textbf{SDE Audit}: Reports $D^{(1)} = 22.11$, $D^{(2)}_{\text{tr}} = 0.0367$, yielding $\rho_{\text{raw}} = 115.39 > 1.5$ (\textsf{BALLISTIC}).
+    \item \textbf{Tapestry Audit}: Shows exact corpus mixture for the batch window (here, 100\% \texttt{CZ\_fact} just after a checkpoint resume).
+    \item \textbf{Friction Rail}: Reports early layer variance 0.97, late layer variance 1.00, giving Friction Delta $\Delta = -0.03$ (\textsf{HARMONIZED}).
+    \item \textbf{Stability Observatory}: Reports the MASSIF Training-Time metrics. Basin Radius = 91.05 (healthy macroscopic volume). Norm-Growth Rate $\lambda_N$ = -0.08 (active state norm shrinkage). Critical Slowing Down = 0.000 (system not yet frozen).
+    \item \textbf{Kinetic Triggers}: Reports active Hidden Descent with positive decoupling velocity $\dot{\sigma}^2_{\text{head}} = +0.702$. Control effort $\dot{W}_{\text{gov}} = 160.53$ equals $\Pi_\alpha = 160.53$, and $\dot\sigma^2_{\text{head}}$ equals the fiber curvature ($0.702$ versus $0.7018$): the zero-initialised previous-value signature of Metric 8.4.\sR{} In this log the guard window did not cover the first step after resume, so the ghost values were printed.\sR{}
+    \item \textbf{FFNVeto line}: ``FFNVeto: 100.0\% mean\_norm=44.8 max\_norm=48.5 | target=50'' is a genuine hit fraction of the last block, not an artifact. The norms are pre-veto and the printed target is the dashboard ramp value. Every token exceeded the block's effective target, which therefore lay below $44.8$ and is consistent with the configuration value $30$.\sC{} The same log's $\Pi_{\text{FFN}} = 172.1$ requires $\nu < 1$ (Metrics 1.2 and 7.1).\sR{}
+    \item \textbf{SURFER\_TARGET and throughput}: SURFER\_TARGET $= 45.00$ is the block-level alpha target written by the resume recalibration fallback and not read while $p < 1$ (Metric 1.3).\sC{} The throughput line (676{,}150{,}836 tok/s) is the tracker cold-start artifact of Metric 8.4.\sR{}
+    \item \textbf{Macroscopic Regime}: Reports $R_t = 0.909$ (\textsf{MARGINAL}). 
+    \item \textbf{SLT Phase Transition}: The Optimization Response Function $\chi_R$ flipped from -0.4109 to +0.1342. With the exponential average of weight 0.1 used in the code, this requires a single raw ratio $\Delta\mathcal{L}/\Delta R \approx +5.04$, so the sign change rests on one sample. It is reported as a candidate event pending the persistence criterion of Metric 7.4.
+    \item \textbf{Scheduled Eval}: The independent SNLI audit completed, yielding $33.82\%$ accuracy ($n = 9{,}842$). An exact binomial test against $1/3$ gives $p = 0.153$ (one-sided), and the Wilson 95\% interval is $[32.90\%, 34.77\%]$. The value equals the majority-class rate, so the audit supports no capability claim at this step. The audit used the pre-fix label order and a rule that later audits showed to predict one label for every example (Section~\ref{sec:snli}). Inference Instability $= 0.0000$ with no failure flags.
+    \item \textbf{LBR Memory}: Internal Meta-Governor initializes its lesson-based reasoning memory. Indexed 1,431 actionable lessons, pruned 124 sterile lessons, leaving 1,307 active lessons in the vector database.
+    \item \textbf{Meta-Governor}: Reports Circuit Breaker status \textbf{[GREEN]}, active LBR memory = 1,307 units, pending verifications = 1, exploration rate $\epsilon = 0.10$.
+\end{itemize}
+
+\newpage
+
+% SECTION 14: MASTER SUMMARY MATRIX
+\section{Summary Reference Matrix of All Observables}
+
+\begin{longtable}{p{2.5cm} p{1.9cm} p{4.7cm} p{2.5cm} p{2.9cm}}
+\caption{Master Reference Matrix of MyceliaLM \& MASSIF Telemetry Metrics.} \label{tab:master_matrix} \\
+\toprule
+\textbf{Metric Name} & \textbf{Symbol} & \textbf{Mathematical Expression} & \textbf{Healthy Range} & \textbf{Diagnostic Role} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+
+Hidden State & $h^{(l)}_t$ & $h^{(l)}_t \in \mathbb{R}^d$ & $\|h\|_2 \in [18, 24]$ & Trajectory coordinate \\
+FFN Veto hit ratio & $\rho_{\text{hit}}$ & $\frac{1}{T}\sum\mathbf{1}[\|f\|>\tau_{\text{eff}}]$ & provisional & Clamp engagement \\
+FFN Veto factor & $\nu$ & $\frac{1}{T}\sum\min(1,\tau_{\text{eff}}/\|f\|)$ & $1.0$ = unclamped & Clamp strength \\
+Alpha target (effective) & $\tau_\alpha^{\text{eff}}$ & ramp if $p<1$, block target if $p\ge1$ & unverified & Alpha clamp level \\
+SoftCap Telemetry & SoftCap & $\text{hit\_ratio} = \frac{1}{TL}\sum \mathbf{1}[\|r\|>\tau]$ & $\text{hit} < 20\%$ & Capacity saturation \\
+Drift Velocity & $D^{(1)}$ & $\lim \frac{1}{\Delta t} \mathbb{E}[\Delta z]$ & $18.79 - 21.58$ & Reasoning drive \\
+Diffusion Trace & $D^{(2)}_{\text{tr}}$ & $\lim \frac{1}{2\Delta t} \mathbb{E}[(\Delta z)(\Delta z)^\top]$ & $\approx 0.0367$ & SDE SNR diffusion rate \\
+Diffusion Dir & $D^{(2)}_{\text{dir}}$ & $\text{Var}_{\text{dir}}(\Delta z)$ & $2.2e{-4} - 2.9e{-4}$ & Pawula ratio variance \\
+4th Moment & $D^{(4)}$ & $\lim \frac{1}{24\Delta t} \mathbb{E}[(\Delta z)^4]$ & $10^{-7} - 10^{-6}$ & Non-Gaussian jump check \\
+Pawula Ratio & $\mathcal{R}_{\text{Pawula}}$ & $D^{(4)} / (D^{(2)}_{\text{dir}})^2$ & $6.0 - 50.0$ & Fokker-Planck validity \\
+SDE SNR & $\rho_{\text{dir}}$ & $\|D^{(1)}\|_2 / \sqrt{D^{(2)}_{\text{tr}}}$ & $> 1.5$ & Ballistic vs random walk \\
+Latent Velocity & $v^{(l)}_t$ & $h^{(l)}_t - h^{(l-1)}_t$ & $\|v\|_2 \in [2.8, 4.2]$ & Layer displacement \\
+Curvature & $\kappa_t$ & $\|v \times a\|_2 / (\|v\|_2^3 + \epsilon)$ & $0.12 - 0.35$ & Trajectory bending \\
+Persistence & $I_t$ & $(v_t \cdot v_{t-1})/(\|v_t\|\|v_{t-1}\|)$ & $I_t < 0.0$ & Attractor lock-in check \\
+Local Tension & $\sigma_t$ & $\text{std}(\{\bar{I}_t^{(r)}\})$ & $0.05 - 0.22$ & Collapse precursor \\
+Sub-Basin Jump & $\text{SBTI}$ & $\mathbf{1}[\|\Delta \nabla \mathcal{L}\|>\delta]\Delta \mathcal{L}$ & $0.000$ & Basin jump indicator \\
+Cross-Token Coh & $c_l$ & $\text{mean}_{i\neq j} \cos(v_i, v_j)$ & $0.000 - 0.880$ & Collective alignment \\
+Dubito Index & $\text{Dubito}$ & $\sigma^2_{\text{head}} e^{\gamma \kappa} (1-C)$ & $1.2 - 4.5$ & Self-doubt / paradox \\
+Warning Time & $\tau_{\text{eff}}$ & $t_{\text{collapse}} - t_{\text{detection}}$ & $> +30.0$ tokens & Predictive lead time \\
+Friction Delta & $\Delta$ & $\mathcal{V}_{\text{early}} - \mathcal{V}_{\text{late}}$ & $-0.06 - -0.09$ & Depth energy cascade \\
+Coherence & $C$ & $\frac{1}{T}\sum \mathbf{1}[\sigma^2_{\text{attn}} < \theta_t]$ & $0.75 - 0.98$ & Head consensus rate \\
+Fiber Curvature & $\sigma^2_{\text{head}}$ & $\text{Var}_h(\kappa_t^{(h)})$ & $0.60 - 0.77$ & Head specialization \\
+Decoupling Vel & $\dot{\sigma}^2_{\text{head}}$ & $\Delta \sigma^2_{\text{head}} / \Delta t$ & $> +0.005$ & Active Hidden Descent \\
+Spectral Mass & $S_{\text{conc}}$ & $\sum_{i=1}^k \sigma_i / \sum \sigma_j$ & $0.06 - 0.08$ & Spectral anisotropy \\
+Control Effort & $\dot{W}_{\text{gov}}$ & $|\Pi_t - \Pi_{t-1}|$ & $0.05 - 25.17$ & Governor work rate \\
+Total Pressure & $\Pi$ & $\Pi_\alpha + \Pi_{\text{FFN}} + \Pi_{\text{MPC}} + \Pi_{\text{cap}}$ & depends on $\tau_{\text{eff}}$ & Total residual stress \\
+Pressure Conc & $\chi$ & $\max_i \Pi_i / \Pi_{\text{total}}$ & $0.35 - 0.70$ & Single point failure \\
+Order Parameter & $R_t^{\text{CCR}}$ & $\Pi_\alpha / (\Pi_{\text{FFN}} + \Pi_{\text{MPC}})$ & $> 1.50$ & Constructive vs Compensatory \\
+Response Func & $\chi_R$ & $\partial \mathcal{L} / \partial R_t$ & $< -0.05$ & Susceptibility / Grokking \\
+GCI & $\text{GCI}$ & $\frac{1}{6}\sum \mathbf{1}[\text{Crit}_i]$ & $1.00$ (stop) & Pre-training completion \\
+\textbf{Meta-Governor} & $S_{\text{meta}}^{(l)}$ & $f_{\text{internal}}(h, \Pi, R_t, \chi_R)$ & $\alpha_{\text{eff}} \in [0.40, 1.20]$ & In-vivo forward-pass self-regulation \\
+\textbf{Auto-Tuner} & $\tau_i(t)$ & $\tau_i - \eta \cdot \text{sign}(\chi_R) \frac{\partial \Pi_i}{\partial \tau_i}$ & $\chi < 0.85$ & Outer-loop set-point calibration \\
+\textbf{Basin Radius} & $\text{Basin\_R}$ & $\mathrm{tr}\,\mathrm{Cov}(h^{(L)})$ & $67.0 - 91.0$ & Macroscopic manifold volume \\
+\textbf{Norm-Growth} & $\lambda_N$ & $\text{mean}(\ln(\|h_{l+1}\|/\|h_l\|))$ & $< 0.0$ & State norm shrinkage \\
+\textbf{Critical Slowing} & $\text{CSD}$ & $\text{Corr}(\Delta_{t-1}, \Delta_t)$ & $\to 1.0$ & Phase transition proximity \\
+Tokens consumed & $N_{\text{tok}}$ & $s\,B\,L_{\text{seq}}$ & n/a & Progress counter \\
+Stable rank & $\operatorname{sr}(W)$ & $\|W\|_F^2/\sigma_1^2$ & vs Gaussian & Weight structure \\
+MP outlier fraction & $f_{\text{out}}$ & $\#\{\lambda>1.05\lambda_+\}/r$ & $\approx 0$ for noise & Learned structure \\
+Power-law exponent & $\alpha$ & Hill estimate, ESD tail & $2$--$6$ \sB{} & Layer training quality \\
+Update top-16 share & $\text{dw\_top16}$ & top-16 energy of $\Delta W$ & n/a & Update concentration \\
+Probe accuracy & $a_{\text{probe}}$ & logistic regression, frozen states & vs hyp-only, random & Representation signal \\
+Calibrated SNLI acc. & $a_{\text{cal}}$ & PMI rule & vs $0.338$ & Generative readout \\
+
+\end{longtable}
+
+\end{document}

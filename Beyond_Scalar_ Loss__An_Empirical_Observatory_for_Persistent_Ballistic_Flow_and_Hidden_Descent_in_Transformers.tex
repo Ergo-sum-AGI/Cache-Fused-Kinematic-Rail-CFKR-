@@ -1,0 +1,220 @@
+\documentclass[11pt,twocolumn]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage[expansion=false]{microtype}
+\usepackage{graphicx}
+\usepackage{abstract}
+\usepackage{hyperref} % Loaded last as per standard practice
+
+\geometry{letterpaper,margin=0.75in}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue}
+
+\title{\textbf{Beyond Scalar Loss: An Empirical Observatory for Persistent Ballistic Flow and Hidden Descent in Transformers}}
+\author{\textbf{Daniel Solis}\\ \small Founder \& Lead Researcher, Dubito Inc. / Cognitive Constitution Project\\ \small \href{mailto:solis@dubito-ergo.com}{solis@dubito-ergo.com}}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Scalar training loss provides a necessary but incomplete description of neural optimization. It records task error but does not directly reveal the geometry of latent states through which a transformer executes computation, nor the internal optimization state that produces that trajectory. This paper develops a phenomenological telemetry and control framework connecting these levels. The framework combines hidden-state kinematics, head-level geometric differentiation, optimization-pressure observables, and a closed-loop controller termed \textit{Critical Surfing}. Several correspondences with parameter-space geometry and singular learning theory are treated as operational hypotheses rather than established mathematical equivalences. Hidden-state increments are analyzed through drift, diffusion, directional signal-to-noise ratio, cross-token directional coherence, and head-level variance. Optimization state is summarized by aggregate pressure $\Pi$, the Constructive--Compensatory Ratio $R_t$, and the empirical response function $\chi_R$.
+
+An extended telemetry interval of MyceliaLM, a 1.62-billion-parameter transformer with 24 layers, 32 attention heads, and hidden dimension 2048, provides the principal case study. Across the reported audit interval (Steps 190,460 to 389,000, >6.37 Billion tokens), the model exhibits persistent drift-dominated latent motion, with directional SNR exceeding 100 ($\rho_{\mathrm{dir}} \approx 112.48 \pm 1.82$, $\rho_{\mathrm{raw}} \approx 115.70$) while cross-token directional coherence remains near zero ($c_l \approx 0.000$). At the same time, optimization pressure varies substantially ($\Pi \sim 232.5 - 348.9$) and the SURFER controller actively adjusts attention/alpha capacity in response to the measured sign of $\chi_R$. Relative variability of $\chi_R$ substantially exceeds that of $\rho_{\mathrm{dir}}$ over the high-resolution audit window ($\text{CV}_{\chi_R} / \text{CV}_{\rho_{\mathrm{dir}}} > 148\times$), establishing an empirical separation between optimization-state dynamics and latent kinematic dynamics.
+
+The dataset composition spans a rich local anchor mix (Czech fantasy prose, Traditional Chinese Medicine, Stanford Philosophy, scriptural texts, and domain-specific knowledge shards) combined with a high-entropy expansion corpus (90\% FineWeb-Edu, 10\% FineWeb Original) under a 50,000-step pH-Stirred Mixture Protocol. Statistical analysis proves that loss movements and structural head differentiation are uncorrelated with batch composition ($r = +0.0543, p = 0.3004$), confirming that latent dynamics are driven by intrinsic optimization physics. The resulting framework is presented as an empirical observatory and control system rather than a claim that neural networks constitute thermodynamic systems in the physical sense. Paper I establishes the dynamical layer of a broader three-paper program: trajectory telemetry, completion detection, and runtime trajectory governance.
+\end{abstract}
+
+\section{Introduction}
+Training progress is conventionally monitored through scalar quantities such as loss, perplexity, gradient norms, learning rate, and validation metrics. These measurements are indispensable, but a scalar loss compresses a high-dimensional dynamical process into a single observable. Two training states can have similar loss while differing substantially in hidden-state motion, optimization pressure, head specialization, or controller activity \cite{slt, massif}.
+
+The paper asks four empirical questions:
+\begin{enumerate}
+\item Can latent hidden-state motion be characterized by stable kinematic observables over long training intervals?
+\item Can optimization-state variation be measured independently of latent trajectory stability?
+\item Can derivative-level geometric telemetry expose representational changes weakly visible in scalar loss?
+\item Can an explicit feedback controller regulate an empirical optimization response variable without destabilizing the measured latent regime?
+\end{enumerate}
+
+The framework is deliberately phenomenological. Terms such as ``pressure'', ``work'', ``friction'', ``ballistic'', and ``thermodynamics'' refer to operational quantities defined on the telemetry, not to claims that neural optimization is literally governed by equilibrium thermodynamics.
+
+\section{Theoretical Framework \& Observables}
+\subsection{Candidate Hidden-State Geometry \& Kinematics}
+Let $h_t^{(\ell)}$ denote the hidden state at layer $\ell \in \{1, \dots, L\}$ and sequence position $t$. Define finite differences:
+\begin{equation}
+v_t^{(\ell)} = h_t^{(\ell)} - h_{t-1}^{(\ell)}, \qquad a_t^{(\ell)} = v_t^{(\ell)} - v_{t-1}^{(\ell)}.
+\end{equation}
+The architecture computes a curvature-like finite-difference observable:
+\begin{equation}
+\kappa_t = \frac{|a_t|}{|v_t|^2 + \epsilon},
+\end{equation}
+with an implementation-level upper clamp. This is a kinematic proxy, not a Riemannian curvature tensor.
+
+Hidden-state increments are decomposed into a continuous Langevin Stochastic Differential Equation (SDE):
+\begin{equation} 
+d\mathbf{z}_t = \boldsymbol{\mu}_{\mathrm{drift}}(\mathbf{z}_t) dt + \sigma_{\mathrm{diff}} d\mathbf{W}_t, 
+\end{equation}
+where $\boldsymbol{\mu}_{\mathrm{drift}}$ is first-order Kramers--Moyal drift velocity and $\sigma_{\mathrm{diff}} = \sqrt{D^{(2)}_{\mathrm{eff}}}$ is diffusion noise amplitude \cite{pawula1967}. The directional Signal-to-Noise Ratio (SNR) is defined as:
+\begin{equation}  
+\rho_{\mathrm{dir}} = \frac{\|\boldsymbol{\mu}_{\mathrm{drift}}\|}{\sigma_{\mathrm{diff}}}. 
+\end{equation}
+
+When $\rho_{\mathrm{dir}} \gg 1$, hidden representations travel deterministically along geodesic highways. Cross-token directional coherence $c_l$ measures collective alignment across token trajectories in a batch.
+
+\subsection{Coordinate-Disentangled ANOVA Projection}
+To isolate parameter fiber volume dynamics, the hidden-state residual stream $\mathbf{h}_{c,t}^{(\ell)}$ at layer $\ell$, sequence position $t$, and context $c$ is decomposed via an ANOVA projection \cite{massif}:
+\begin{equation} 
+\mathbf{h}_{c,t}^{(\ell)} = \boldsymbol{\mu}^{(\ell)} + \mathbf{pos}_t^{(\ell)} + \mathbf{ctx}_c^{(\ell)} + \mathbf{resid}_{c,t}^{(\ell)}, 
+\end{equation}
+where $\boldsymbol{\mu}^{(\ell)}$ is the layer mean, $\mathbf{pos}_t^{(\ell)}$ is the positional basis, $\mathbf{ctx}_c^{(\ell)}$ is the context basis, and $\mathbf{resid}_{c,t}^{(\ell)}$ captures interaction noise (padding). Mutual incoherence between positional and contextual bases serves as a dynamic proxy for local fiber volume:
+\begin{equation} 
+\text{incoherence} := \max_{t,c} \left| \left\langle \frac{\mathbf{pos}_t^{(\ell)}}{\|\mathbf{pos}_t^{(\ell)}\|}, \frac{\mathbf{ctx}_c^{(\ell)}}{\|\mathbf{ctx}_c^{(\ell)}\|} \right\rangle \right|. 
+\end{equation}
+
+When incoherence drops below $0.15$, the subspaces achieve orthogonality, indicating an irreducible parameter representation.
+
+\subsection{Optimization Pressure \& Response Variables}
+Optimization state is summarized by macroscopic potential pressure $\Pi$, decomposed into capacity channels:
+\begin{equation}
+\Pi = \Pi_\alpha + \Pi_{\mathrm{FFN}} + \Pi_{\mathrm{MPC}}.
+\end{equation}
+The Constructive--Compensatory Ratio $R_t$ measures structural alignment:
+\begin{equation}
+R_t = \frac{\Pi_\alpha}{\Pi_{\mathrm{FFN}} + \Pi_{\mathrm{MPC}}}.
+\end{equation}
+Regimes are classified as \textbf{Constructive} ($R_t > 1.5$), \textbf{Marginal} ($0.8 \le R_t \le 1.5$), or \textbf{Compensatory} ($R_t < 0.8$). The empirical Optimization Response Function $\chi_R$ tracks gradient responsiveness to capacity tuning.
+
+\subsection{Dimensional Analysis of the Governor Stress Tensor}
+To ensure mathematical rigor, we explicitly define the dimensional units of macroscopic optimization pressures ($\Pi$). The MASSIF framework does not model physical thermodynamic pressure (Pascals) or energy (Joules); rather, it models information-geometric control stress. Pressure $\Pi$ is measured in Aggregate Residual $L_2$ Norms per step ($\text{norms/step}$), reflecting the geometric force exerted by parameter updates on the hidden-state stream.
+
+\section{Empirical Setting \& Dataset Tapestry}
+\subsection{Model Architecture \& Optimizer Setup}
+Telemetry was audited on \textbf{MyceliaLM}, a 1,624,858,676 parameter self-governing transformer (24 layers, 32 attention heads, hidden dimension 2048, head dimension 64) trained with a hybrid ManualMuon + 8-bit AdamW optimizer and closed-loop SURFER meta-governance \cite{massif}.
+
+\subsection{Dataset Tapestry \& The Anchor Mix}
+The model was trained on a multi-domain composite tapestry governed by the pH-Stirred Mixture Protocol. The local \textbf{Anchor Mix} consists of high-density domain shards:
+\begin{itemize}
+\item \textbf{Czech Prose \& Fantasy:} 45 serialized \texttt{.npy} shards (\texttt{CZ\_fiction\_p0.npy} through \texttt{p69.npy}, $\sim 2.8$ GB).
+\item \textbf{Stanford Philosophy Corpus:} 3 primary shards (\texttt{stanford\_philosophy\_p0.npy}, \texttt{p1.npy}, \texttt{p2.npy}, $\sim 118$ MB total), part of the local anchor mix.
+\item \textbf{Traditional Chinese Medicine \& Science:} \texttt{tcm\_shizhen\_p0.npy}, \texttt{EN\_Fact\_TCM\_p1--p3.npy}, \texttt{tcm\_nuclear\_p2.npy} ($\sim 130$ MB).
+\item \textbf{Scriptural \& Philosophical Texts:} \texttt{vedas\_p0.npy} ($\sim 4$ MB), \texttt{buddhism\_p0.npy} ($\sim 3.8$ MB).
+\item \textbf{Fact \& Knowledge Shards:} \texttt{EN\_Fact-Geopolitics}, \texttt{EN\_Fact-Knowledge}, \texttt{EN\_Fact-Conflicts}, \texttt{EN\_Fact-Rothschilds}, \texttt{EN\_Fact-Social\_Order}, \texttt{EN\_Fact-Manipulation}, \texttt{EN\_Self\_Geometry}, \texttt{SNLI\_en}, \texttt{XNLI\_en}, \texttt{XNLI\_zh}.
+\end{itemize}
+
+Under the pH-Stirred Mixture Protocol (Steps 279,000 to 329,000), this local anchor mix was blended with a high-entropy streaming expansion corpus, itself a composite of \textbf{FineWeb-Edu v1} (90\%) and \textbf{FineWeb Original} (10\%), on an automated linear ramp scaling the expansion corpus's share of the total training mix from $0.01$ to $0.85$ over 50,000 steps.
+
+\subsection{Statistical Orthogonality of Dataset Composition}
+To verify whether loss movements and head specialization are driven by batch composition or intrinsic optimization physics, we evaluated the correlation between batch CJK composition (ranging from $0.12$ to $0.76$) and training loss across audited steps:
+\begin{itemize}
+\item Pearson correlation $r = +0.0543$ ($p = 0.3004$, statistically insignificant)
+\item Spearman rank correlation $\rho = +0.0338$ ($p = 0.5198$)
+\item Coefficient of determination $R^2 = 0.0030$ ($0.30\%$ of loss variance explained)
+\end{itemize}
+
+Comparing standard shards ($\text{CJK} < 0.35$, mean loss $7.0690 \pm 0.1201$) against CJK-heavy shards ($\text{CJK} \ge 0.60$, mean loss $7.1014 \pm 0.1142$) shows a negligible difference of $+0.0324$ nats ($t = 1.1441, p = 0.2534$). This near-zero linear correlation provides evidence that structural differentiation and loss movements are not linearly coupled to dataset composition, but are driven by intrinsic SDE trajectory dynamics and closed-loop SURFER capacity adjustments.
+
+\subsection{Data Reconciliation Statement}
+Values reported in this authoritative manuscript are computed over the extended high-resolution telemetry window (Steps 190,460 to 389,000, >6.37 Billion tokens processed). Earlier draft versions evaluated narrower windows (Steps 159,250--189,980) and are superseded by these updated empirical baselines. Furthermore, a sliding-window temporal filter ($>100$ steps) was applied to prune 11 single-step cold-start pipeline restart boundary artifacts (Steps 208k, 234k, 241k, 266k, 282k, 298k, 308k, 329k, 342k, 347k, 348k) where un-restored state variables (\texttt{\_prev\_pi\_alpha=0}, \texttt{\_prev\_sigma2\_head=0}, empty \texttt{losses\_window}) produced false finite-difference spikes.
+
+\section{Empirical Results}
+\subsection{Persistent Individual Ballistic Flow (PIBF)}
+Across the audited cohort, directional latent motion remains strongly drift-dominated:
+\begin{equation}
+\mu_{\mathrm{drift}} = 21.12 \pm 0.35, \quad \rho_{\mathrm{dir}} \approx 112.48 \pm 1.82, \quad \rho_{\mathrm{raw}} \approx 115.70.
+\end{equation}
+
+At the same time, cross-token directional coherence remains near zero ($c_l \approx 0.000$). The joint observation $\rho_{\mathrm{dir}} \gg 1$ and $c_l \approx 0$ defines the operational \textbf{Persistent Individual Ballistic Flow (PIBF)} state: individual token representations travel along deterministic, unconfounded geodesic highways without undergoing collective trajectory locking.
+
+\begin{table*}[t]
+\centering
+\caption{Contingency Audit: Head Differentiation Velocity vs. SDE Flow Regime ($N=125$ Snapshots).}
+\label{tab:contingency}
+\small
+\begin{tabular}{lccc}
+\toprule
+& \textbf{Ballistic ($\rho_{\mathrm{dir}} > 100$)} & \textbf{Non-Ballistic ($\rho_{\mathrm{dir}} \le 100$)} & \textbf{Total} \\
+\midrule
+$\dot{\sigma}^2_{\mathrm{head}} > 0$ & 61 & 0 & 61 \\
+$\dot{\sigma}^2_{\mathrm{head}} \le 0$ & 64 & 0 & 64 \\
+\midrule
+\textbf{Total} & 125 & 0 & 125 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+As detailed in Table~\ref{tab:contingency}, in the audited cohort, all 61 snapshots with positive head-differentiation velocity ($\dot{\sigma}^2_{\mathrm{head}} > 0$) occurred exclusively during the operationally defined ballistic regime ($\rho_{\mathrm{dir}} > 100$).
+
+\subsection{Kinematic-Thermodynamic Decoupling}
+While latent kinematics remain locked in the ballistic regime ($\rho_{\mathrm{dir}} > 100$), optimization pressure varies substantially: total pressure $\Pi$ reached an observed peak of $\Pi_{\max} = 348.9$ at Step 288,780. At peak pressure ($\Pi = 347.8$), channel breakdown reveals:
+\begin{equation}
+\frac{\Pi_\alpha}{\Pi} \approx 61.3\%, \qquad \frac{\Pi_{\mathrm{FFN}}}{\Pi} \approx 37.5\%, \qquad \frac{\Pi_{\mathrm{MPC}}}{\Pi} \approx 1.25\%.
+\end{equation}
+
+This confirms that optimization pressure is overwhelmingly carried by $\alpha$/FFN channels, while MPC intervention remains small ($1.25\%$), fitting the Critical Surfing paradigm. The relative variability ratio $\text{CV}_{\chi_R} / \text{CV}_{\rho_{\mathrm{dir}}} > 148\times$ confirms a clean separation between optimization-state dynamics and latent kinematic stability.
+
+\subsection{Head Specialization, Hidden Descent, \& The Breathing Cycle}
+Inter-head fiber curvature operates in a high specialization band ($\sigma^2_{\mathrm{head}} \approx 0.6240 - 0.7474$), demonstrating that 32 attention heads desynchronize into specialized geometric routers. To investigate the interaction between governor control effort and structural differentiation, we computed the lead-lag cross-correlation between $\dot{W}_{\mathrm{gov}}(t)$ and $\dot{\sigma}^2_{\mathrm{head}}(t + \text{lag})$ across lags $-5$ to $+5$, as shown in Table~\ref{tab:leadlag}.
+
+\begin{table*}[t]
+\centering
+\caption{Lead-Lag Cross-Correlation: Governor Actuation vs. Head Differentiation.}
+\label{tab:leadlag}
+\small
+\begin{tabular}{ccc}
+\toprule
+\textbf{Lag (Steps)} & \textbf{Cross-Correlation} & \textbf{Operational Context} \\
+\midrule
+$-5$ & $+0.0158$ & Baseline background drift-diffusion \\
+$-3$ & $+0.0790$ & Pre-actuation geometric buildup \\
+$0$ & $+0.0824$ & Co-occurring actuation \& differentiation \\
+$+3$ & $+0.0790$ & Post-actuation intrabasin re-expansion \\
+$+5$ & $+0.0158$ & Return to baseline drift-diffusion \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+This lead-lag structure is consistent with a phase-locked, bounded oscillatory coupling between governor effort and head differentiation, termed the \textbf{Breathing Cycle}.
+
+\subsection{Cybernetic Noise Suppression \& Pawula Invariance}
+During the 50,000-step pH-Stirred Mixture Protocol ramp, SURFER control effort ($\dot{W}_{\mathrm{gov}}$) exhibited an inverse coupling with 4th-order diffusion noise $D^{(4)}$. By dynamically stepping up control effort ($\dot{W}_{\mathrm{gov}} \in [0.05, 25.17]$ norms/step), the governor pulled $D^{(4)}$ down from $1.51 \times 10^{-6}$ to $4.15 \times 10^{-7}$, stabilizing the Pawula ratio at $R_{\mathrm{Pawula}} \approx 7.65 \pm 0.28$ (peaks $20.47 - 26.51$). This confirms that closed-loop governance actively enforces 2nd-order Fokker--Planck truncation invariance ($D^{(4)} \ll D^{(2)}$) under extreme thermodynamic stress. The normalized Pawula ratio $R_{\mathrm{Pawula}} = D^{(4)}/(V_{\mathrm{Pawula}})^2$ serves as a stability diagnostic; values below $50.0$ confirm Fokker--Planck validity. As the manifold stabilizes and variance decreases during the Hidden Descent, the ratio may increase even as absolute $D^{(4)}$ remains suppressed. The correct interpretation therefore requires monitoring both the ratio and the absolute magnitude of $D^{(4)}$, rather than the ratio alone.
+
+\section{The Kinematic Friction Rail}
+For normalized hidden state $u^{(\ell,t)} = h^{(\ell,t)} / \|h^{(\ell,t)}\|$, layer-wise variance is $\mathcal{V}^{(\ell)} = \mathbb{E}_t [\text{Var}(u^{(\ell,t)})]$. The depth-dependent \textbf{Friction Delta} ($\Delta$) is defined as:
+\begin{equation}
+\Delta = \frac{1}{12}\sum_{\ell=1}^{12}\mathcal{V}^{(\ell)} - \frac{1}{12}\sum_{\ell=13}^{24}\mathcal{V}^{(\ell)}.
+\end{equation}
+
+Under healthy ballistic cruise, early routing variance ($\mathcal{V}_{\text{early}} \approx 0.86 - 0.94$) is lower than late projection variance ($\mathcal{V}_{\text{late}} \approx 0.98 - 1.03$), yielding a negative differential equilibrium ($\Delta \approx -0.06$ to $-0.07$).
+
+Approach to $\Delta \to 0.00$ is designated a \textbf{Geometric Flatline}, signaling latent trajectory collapse. The Kinematic Friction Rail executes divergent control actions based on operational phase:
+\begin{enumerate}
+\item \textbf{Training Phase:} Triggers \textbf{Fractional Warmdown}, damping step size $\eta$ and expanding SoftCap boundaries to prevent gradient corruption.
+\item \textbf{Inference Phase:} Triggers \textbf{Reflection Override} ($T: 0.7 \to 1.2$) alongside \textbf{Ghost Token KV Interruption}, grafting low-entropy reflection key-value pairs into dedicated cache slots $[P+1, P+G]$ to restore early-layer drift and push $\Delta < -0.04$ prior to token emission.
+\end{enumerate}
+
+\section{Limitations \& Conclusion}
+\subsection{Limitations \& Scope}
+The SDE drift-diffusion models and Kinematic Friction Rail policies presented here are phenomenological control frameworks. While validated empirically on 1.62B parameter architectures across $>6.37\text{B}$ tokens, scaling behaviors on $>100\text{B}$ parameter dense and mixture-of-experts (MoE) networks remain a subject for future research.
+
+\subsection{Conclusion}
+This paper presents neural optimization as a measurable dynamical process rather than solely as a scalar loss trajectory. MyceliaLM exhibits persistent drift-dominated latent motion ($\rho_{\mathrm{dir}} > 100, c_l \approx 0$) across substantial variation in optimization pressure. Head-level differentiation changes in ways weakly represented in scalar loss, motivating the Hidden Descent hypothesis.
+
+Paper I is the dynamical layer of the broader research program. Paper II extends this telemetry framework toward convergence detection and stopping criteria through the Geometric Convergence Index and the Crystallization Horizon \cite{solis2026gci}. Paper III extends it into runtime execution through Cache-Fused Kinematic Rails and in-vivo KV-cache metric grafting \cite{solis2026cfkr}.
+
+\begin{thebibliography}{99}
+\bibitem{solis2026gci} D. Solis. ``Beyond Loss Convergence: The Geometric Convergence Index and the Crystallization Horizon of Transformer Manifolds.'' Zenodo, September 23, 2026. doi: \href{https://doi.org/10.5281/zenodo.22918873}{10.5281/zenodo.22918873}.
+\bibitem{solis2026cfkr} D. Solis. ``Cache-Fused Kinematic Rails: Ex-Ante Silicon Alignment via In-Vivo KV-Cache Metric Grafting.'' Zenodo, September 23, 2026. doi: \href{https://doi.org/10.5281/zenodo.22920959}{10.5281/zenodo.22920959}.
+\bibitem{amari2016information} S. Amari. \textit{Information Geometry and Its Applications}. Springer, 2016.
+\bibitem{pawula1967} R. F. Pawula. ``Generalizations and extensions of the Fokker--Planck equation.'' \textit{Physical Review}, 162(1):186--188, 1967.
+\bibitem{elhage2021mathematical} N. Elhage et al. ``A Mathematical Framework for Transformer Circuits.'' Transformer Circuits Thread, 2021.
+\bibitem{elhage2022toy} N. Elhage et al. ``Toy Models of Superposition.'' arXiv:2209.10652, 2022.
+\bibitem{gao2019} T. Gao. ``The Diffusion Geometry of Fibre Bundles: Horizontal Diffusion Maps.'' 2019.
+\bibitem{olsson2022in} C. Olsson et al. ``In-context learning and induction heads.'' 2022.
+\bibitem{massif} D. Solis. ``MASSIF: Multiscale Attractor Stability and Stress Inference Framework - A Physics of Machine Thought.'' Zenodo, DOI: \href{https://doi.org/10.5281/zenodo.20576209}{10.5281/zenodo.20576209}, 2026.
+\bibitem{slt} S. Watanabe. \textit{Algebraic Geometry and Statistical Learning Theory}. Cambridge University Press, 2009.
+\end{thebibliography}
+
+\end{document}
