@@ -46,12 +46,6 @@ Preliminary empirical testing of the KineticMonitor confirms that the geometric 
 
 Next Step (Hardware Scaling): The CFKR research proposes transitioning this validated O(1) PyTorch hook logic into a sub-millisecond Triton/CUDA kernel. By grafting low-entropy reflection Key-Value (KV) states directly into pre-allocated VRAM buffers, CFKR achieves an estimated 8.88× latency speedup over software bias interventions, scaling linearly O(G) with reflection length.
 
-## Roadmap & Funding Objectives
-Development of this framework has been conducted through ultra-lean, single-GPU engineering. To elevate this proof-of-concept into an enterprise-scale, open-source physical operating system for foundation model alignment, we are seeking $150,000 in seed grant funding over a 6-month period.
-
-Milestone 1: Multi-GPU Compute & Scaling ($90k): Transition the 1.62B parameter validation stack to multi-node A100/H100 clusters to test MASSIF and CFKR across 7B to 70B parameter models.
-Milestone 2: Triton/CUDA Kernel Engineering ($40k): Develop production-ready, open-source Triton kernels for Cache-Fused KV cache grafting, integrating directly into inference engines like vLLM and TensorRT-LLM.
-Milestone 3: Adversarial Red-Teaming ($20k): Execute the pre-registered Model Stability Protocol, funding independent, blinded evaluation sets to measure false-positive/negative flatline rates across adversarial prompt banks.
 Author & Recognition
 Daniel Solis | Founder & Lead Researcher, Dubito Inc. / Cognitive Constitution Project
 
