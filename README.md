@@ -56,3 +56,16 @@ Citation
 If you find this work relevant to your research or safety engineering efforts, please cite the CFKR paper:
 
 @misc{solis2026cfkr,  author = {Daniel Solis},  title = {Cache-Fused Kinematic Rails: Ex-Ante Silicon Alignment via In-Vivo KV-Cache Metric Grafting},  year = {2026},  publisher = {Zenodo},  doi = {10.5281/zenodo.23002180}}
+
+
+# Limitations and Open Research Questions
+
+Current frontier AI alignment relies on post-hoc text filtering or forced Chain-of-Thought (CoT) reasoning, both of which impose unsustainable compute taxes or suffer from fatal detection lags. My work proposes shifting AI safety to ex-ante, in-vivo forward-pass governance via the Multiscale Attractor Stability and Stress Inference Framework (MASSIF).
+
+Through MASSIF, we monitor the Friction Delta (Δ)—the depth-dependent variance differential between early and late transformer layers—to detect "geometric flatlines" (Δ→0.00) before token emission. I have validated the software proof-of-concept (KineticMonitor), a PyTorch hook-based activation steering engine that successfully executes zero-allocation interventions during the forward pass.
+
+The next phase is the Cache-Fused Kinematic Rail (CFKR): a hardware-native Triton kernel that fuses low-entropy reflection Key-Value (KV) states directly into pre-allocated VRAM. The kernel has been sketched and mathematically validated (including a RoPE phase-invariance shortcut), but requires GPU benchmarking.
+
+Crucially, I recognize that latency speedups do not equate to safety. The core scientific question is: Does a Geometric Flatline actually predict hallucination, and does grafting reduce errors better than simple baselines?
+
+To answer this, I have drafted a Pre-registered Evaluation Protocol. It tests three hypotheses (H1: Prediction, H2: Specificity, H3: Intervention) against matched negatives and negative controls (e.g., random layer partitions). The protocol requires CFKR to demonstrate an AUROC > 0.60 for predicting hallucinated spans, and an absolute 5-point reduction in hallucinations compared to no intervention, random-timing grafting, and filler grafting. Funding will be used to execute this protocol on 1-3B parameter models against datasets like TruthfulQA and FActScore.
