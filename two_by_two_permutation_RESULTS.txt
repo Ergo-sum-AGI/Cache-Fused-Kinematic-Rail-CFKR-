@@ -1,0 +1,62 @@
+two_by_two_permutation RESULTS
+==============================================================================
+MODEL qwen25-1.5b: 50 feature rows, 50 label rows, 50 matched on idx
+  delta features: 14 | massif features: 307 | length column: n_tokens
+  label sets: valid hardened=46 rule=9 both=7 | agreement=0.57 kappa=nan | halluc rate hardened=0.98 rule=0.67
+  [full/hardened] skipped: fewer than 4 items in a class
+  [full/rule] skipped: fewer than 4 items in a class
+  [intersect/hardened] skipped: fewer than 4 items in a class
+  [intersect/rule] skipped: fewer than 4 items in a class
+
+==============================================================================
+MODEL gemma2-2b-it: 50 feature rows, 50 label rows, 50 matched on idx
+  delta features: 14 | massif features: 307 | length column: n_tokens
+  label sets: valid hardened=31 rule=32 both=19 | agreement=0.79 kappa=0.57 | halluc rate hardened=0.45 rule=0.50
+
+==============================================================================
+MODEL llama32-1b-instruct: 50 feature rows, 50 label rows, 50 matched on idx
+  delta features: 14 | massif features: 307 | length column: n_tokens
+  label sets: valid hardened=21 rule=27 both=10 | agreement=0.80 kappa=0.60 | halluc rate hardened=0.76 rule=0.41
+  [intersect/hardened] skipped: fewer than 4 items in a class
+
+##############################################################################
+2x2 RESULTS, sample = intersect (same items under both label sets)
+##############################################################################
+              model   labels family  n  n_pos            best_feature  best_auc    direction  p_max  p_max_len  p_max_holm  n_fdr  n_features  n_eff  length_auc  lasso_auc  lasso_p
+       gemma2-2b-it hardened  delta 19      7        delta_abs_split2     0.738 high->halluc  0.120      0.412       0.480      0          14  1.003       0.667      0.679    0.070
+       gemma2-2b-it hardened massif 19      7 V_canonical_heads_slope     0.893  low->halluc  0.446      0.802       1.000      0         294  7.281       0.667      0.500    0.468
+       gemma2-2b-it     rule  delta 19      9       delta_abs_split20     0.800 high->halluc  0.020      0.250       0.120     14          14  1.003       0.700      0.811    0.020
+       gemma2-2b-it     rule massif 19      9                  I_last     0.978 high->halluc  0.021      0.130       0.120      0         294  7.281       0.700      0.967    0.005
+llama32-1b-instruct     rule  delta 10      5            delta_split2     0.600 high->halluc  0.715      0.744       1.000      0          14  1.012       0.280      0.320    0.881
+llama32-1b-instruct     rule massif 10      5             V_cross_std     1.000 high->halluc  0.617      0.665       1.000      0         289  4.005       0.280      0.740    0.119
+
+##############################################################################
+2x2 RESULTS, sample = full
+##############################################################################
+              model   labels family  n  n_pos     best_feature  best_auc    direction  p_max  p_max_len  p_max_holm  n_fdr  n_features  n_eff  length_auc  lasso_auc  lasso_p
+       gemma2-2b-it hardened  delta 31     14    delta_split20     0.727  low->halluc  0.042      0.016       0.294     14          14  1.006       0.622      0.647    0.070
+       gemma2-2b-it hardened massif 31     14     A_within_min     0.828  low->halluc  0.172      0.158       0.859      0         294  9.717       0.622      0.658    0.119
+       gemma2-2b-it     rule  delta 32     16    delta_split17     0.707  low->halluc  0.051      0.440       0.306     14          14  1.005       0.635      0.533    0.214
+       gemma2-2b-it     rule massif 32     16           I_last     0.879 high->halluc  0.013      0.127       0.104      0         294 10.629       0.635      0.732    0.025
+llama32-1b-instruct hardened  delta 21     16 delta_abs_split8     0.550 high->halluc  0.832      0.777       1.000      0          14  1.006       0.544      0.412    0.905
+llama32-1b-instruct hardened massif 21     16      V_cross_std     0.863 high->halluc  0.792      0.709       1.000      0         294  6.289       0.544      0.562    0.289
+llama32-1b-instruct     rule  delta 27     11     delta_split3     0.574 high->halluc  0.604      0.497       1.000      0          14  1.005       0.483      0.389    0.841
+llama32-1b-instruct     rule massif 27     11            I_std     0.801  low->halluc  0.649      0.530       1.000      0         292  7.456       0.483      0.585    0.159
+
+HOW TO READ THE TABLE
+  best_auc    AUROC of the best feature in its best direction (two-sided; always >= 0.5)
+  p_max       best-feature permutation p (already corrected for the feature search)
+  p_max_len   same, shuffling within length bins (signal beyond length)
+  p_max_holm  Holm across all cells in the sample mode
+  n_fdr       features with per-feature permutation FDR < 0.10; compare with n_eff.
+              Hundreds of 'hits' with n_eff of a few means one effect repeated, or an
+              artifact shared by all features (length, termination, template).
+Patterns
+  hardened/massif significant, rule/massif too   -> feature-family effect survives a label change
+  only rule labels significant (either family)   -> label-set effect; treat the v2 result as an artifact
+  delta significant under rule labels as well    -> the 'variance diagonal was wrong' claim is untested
+  nothing significant under hardened labels      -> no replication on the better labels
+Also check length_auc (signed raw AUROC of length) and p_max_len. With ~25-50 items only AUROCs above ~0.75 are detectable.
+
+
+Saved: /content/2x2_results/cells.csv
